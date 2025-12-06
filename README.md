@@ -7,8 +7,10 @@
 
    
 ## Usage
-	game assets:
-
+game assets:
+		\assets
+		\sfx
+		
 	https://strike-radius.itch.io/sabercross
   
 
