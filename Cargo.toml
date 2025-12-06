@@ -2,9 +2,9 @@
 name = "sbrx" 
 version = "0.1.95"
 edition = "2021"
-authors = ["IJB <i4n_1@outlook.com>"]
-description = "2D RACING ARENA FIGHTER"
-license = "AGPL-3.0-only"
+authors = ["IJB <strike_radius@protonmail.com>"]
+description = "2D ARPG"
+license = "AGPL-3.0-or-later"
 
 [dependencies] 
 piston = "1.0.0"
