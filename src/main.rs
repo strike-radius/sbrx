@@ -4317,7 +4317,6 @@ fn main() {
                                         [0.4, 0.25, 0.13, 1.0],
                                     ),
                                     AreaType::Bunker => {
-                                        // Refactored to use the fixed RAPTOR NEST color
                                         (
                                             BUNKER_ORIGIN_X,
                                             BUNKER_ORIGIN_Y,
