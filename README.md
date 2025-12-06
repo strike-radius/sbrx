@@ -10,11 +10,12 @@
 game assets:
 		\assets
 		\sfx
-		
-	https://strike-radius.itch.io/sabercross
 
-1. add \assets and \sfx to the root file
-2. cargo run
+https://strike-radius.itch.io/sabercross
+  
+1. Download Sabercross.zip from itch.io.
+1. copy/paste the \assets and \sfx folders into the source code root file.
+2. cargo run.
   
 
 ## License
@@ -25,6 +26,7 @@ game assets:
 
 
 	strike_radius@protonmail.com
+
 
 
 
