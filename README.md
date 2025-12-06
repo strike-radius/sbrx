@@ -1,22 +1,28 @@
-# sbrx
-   
-   2D ARPG
-   
-## Usage
-game assets:
-		\assets
-		\sfx
+# Sabercross
 
-https://strike-radius.itch.io/sabercross
-  
-1. Download Sabercross.zip from itch.io.
-1. copy/paste the \assets and \sfx folders into the source code root file.
-2. cargo run.
+2D action RPG with a timed strike combo system
+
+### Prerequisites
+- Rust and Cargo (install from https://rustup.rs/)
+
+### Game Assets
+The game assets are not included in this repository due to size constraints.
+
+**To get the assets:**
+1. Download `Sabercross.zip` from https://strike-radius.itch.io/sabercross
+2. Extract the `\assets` and `\sfx` folders
+3. Copy both folders into the root directory of this repository
+
+### Running the Game
+```bash
+cargo run
+```
 
 ## License
-   
-   sbrx is licensed under AGPL-3.0-only - see the COPYING file for details.
-   
+
+- **Code**: AGPL-3.0-only - see the COPYING file for details
+- **Assets**: proprietary
+
 ## Contact
 
-	strike_radius@protonmail.com
+strike_radius@protonmail.com
