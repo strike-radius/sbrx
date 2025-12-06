@@ -1489,6 +1489,16 @@ fn main() {
             match key {
                 Key::LShift | Key::RShift => {
                     shift_held = true;
+					
+                    // Play boost.wav if HUNTER is active
+                    if matches!(game_state, GameState::Playing) 
+                        && fighter.fighter_type == FighterType::Hunter
+                    {
+                        audio_manager.play_sound_effect("boost").unwrap_or_else(|e| {
+                            println!("[Audio] Failed to play boost sound for Hunter: {}", e);
+                        });
+                    }					
+					
                     // Check if Racer is active and Boost mode is enabled [F]
                     if matches!(game_state, GameState::Playing)
                         && fighter.fighter_type == FighterType::Racer
@@ -4313,16 +4323,16 @@ fn main() {
                                         AREA_ORIGIN_X,
                                         AREA_ORIGIN_Y,
                                         AREA_WIDTH,
-                                        AREA_HEIGHT,
+                                        AREA_HEIGHT, 
                                         [0.4, 0.25, 0.13, 1.0],
                                     ),
-                                    AreaType::Bunker => {
+                                    AreaType::Bunker => {                                        
                                         (
                                             BUNKER_ORIGIN_X,
                                             BUNKER_ORIGIN_Y,
                                             BUNKER_WIDTH,
                                             BUNKER_HEIGHT,
-                                            [0.40, 0.40, 0.40, 1.0],
+                                            [0.40, 0.40, 0.40, 1.0], 
                                         )
                                     }
                                 };
@@ -6694,11 +6704,11 @@ fn main() {
                             Key::V => {
                                 if !block_system.active && !is_paused {
                                     if fighter.fighter_type == FighterType::Hunter {
-                                        if current_area.is_none() {
-                                            // BUG FIX: HUNTER can only toggle flight mode if they have fuel.
+                                        if current_area.is_none() {                     
                                             if fighter.fuel > 0.0 {
                                                 if fighter.state == RacerState::OnFoot {
                                                     fighter.state = RacerState::OnBike;
+													audio_manager.play_sound_effect("boost").ok();
                                                 } else {
                                                     fighter.state = RacerState::OnFoot;
                                                 }
