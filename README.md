@@ -12,6 +12,9 @@ game assets:
 		\sfx
 		
 	https://strike-radius.itch.io/sabercross
+
+1. add \assets and \sfx to the root file
+2. cargo run
   
 
 ## License
@@ -22,4 +25,5 @@ game assets:
 
 
 	strike_radius@protonmail.com
+
 
