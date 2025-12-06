@@ -2,6 +2,8 @@
 
 2D action RPG with a timed strike combo system
 
+## Building from Source
+
 ### Prerequisites
 - Rust and Cargo (install from https://rustup.rs/)
 
