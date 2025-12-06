@@ -4323,7 +4323,7 @@ fn main() {
                                             BUNKER_ORIGIN_Y,
                                             BUNKER_WIDTH,
                                             BUNKER_HEIGHT,
-                                            [0.4, 0.25, 0.13, 1.0], // <--- Refactored BUNKER color (Fixed)
+                                            [0.75, 0.75, 0.75, 1.0],
                                         )
                                     }
                                 };
