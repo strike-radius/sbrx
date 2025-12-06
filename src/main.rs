@@ -4323,7 +4323,7 @@ fn main() {
                                             BUNKER_ORIGIN_Y,
                                             BUNKER_WIDTH,
                                             BUNKER_HEIGHT,
-                                            [0.75, 0.75, 0.75, 1.0],
+                                            [0.40, 0.40, 0.40, 1.0],
                                         )
                                     }
                                 };
