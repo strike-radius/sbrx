@@ -1,6 +1,6 @@
 # sbrx
    
-   2D Racing Arena Fighter.
+	2D ARPG
    
 
    
@@ -25,5 +25,6 @@ game assets:
 
 
 	strike_radius@protonmail.com
+
 
 
