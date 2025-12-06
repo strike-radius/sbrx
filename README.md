@@ -22,9 +22,10 @@ cargo run
 
 ## License
 
-- **Code**: AGPL-3.0-only - see the COPYING file for details
+- **Code**: AGPL-3.0-or-later - see the COPYING file for details
 - **Assets**: proprietary
 
 ## Contact
 
 strike_radius@protonmail.com
+
