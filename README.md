@@ -19,4 +19,5 @@
 ## Contact
 
 
-	i4n_1@outlook.com
+	strike_radius@protonmail.com
+
