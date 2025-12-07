@@ -195,6 +195,7 @@ impl AudioManager {
             ("slash_combo", "slashCombo.wav"),
             ("crickets", "crickets.ogg"),
 			("pause", "pause.ogg"),
+			("beat", "beat.ogg"),
         ];
 
         for (name, filename) in effects.iter() {
