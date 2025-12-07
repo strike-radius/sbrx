@@ -270,7 +270,29 @@ impl AudioManager {
         sink.append(source);
  
         Ok(sink)
-    }	
+    }
+
+ 	pub fn play_sfx_with_sink_looped(&self, name: &str) -> Result<Sink, String> {
+ 		let path = {
+ 			let effects_guard = self.sound_effects.lock().unwrap();
+ 			effects_guard
+ 				.get(name)
+ 				.ok_or_else(|| format!("Sound effect '{}' not found", name))?
+ 				.clone()
+ 		};
+  
+ 		let file = File::open(&path)
+ 			.map_err(|e| format!("Failed to open audio file {}: {}", name, e))?;
+  
+ 		let source = Decoder::try_from(file)
+ 			.map_err(|e| format!("Failed to decode audio file {}: {}", name, e))?;
+  
+ 		let sink = Sink::connect_new(&self.mixer);
+ 		sink.set_volume(1.0);
+ 		sink.append(source.repeat_infinite());
+  
+ 		Ok(sink)
+ 	}	
 
     pub fn find_file_in_multiple_locations(base_filename: &str, exe_dir: &Path) -> Option<PathBuf> {
         let mut potential_locations: Vec<Option<PathBuf>> = Vec::new();

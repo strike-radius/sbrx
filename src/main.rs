@@ -1437,7 +1437,7 @@ fn main() {
                     combo_system.reset();
                     if is_paused {
                         println!("Game Paused.");
-                        if let Ok(sink) = audio_manager.play_sfx_with_sink("pause") {
+                        if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("pause") {
                             pause_sound_sink = Some(sink);
                         }
 						if let Some(ref sink) = bike_accelerate_sound_sink {
@@ -1838,6 +1838,7 @@ fn main() {
                             && !shift_override_active
                             && fighter.fuel > 0.0
 							&& !block_system.active
+							&& !block_system.rmb_held
                         {
                             fighter.state = RacerState::OnBike;
                             shift_override_active = true;
@@ -1859,7 +1860,13 @@ fn main() {
                                 &mut current_strike_textures,
 								shift_held,
                             );
-                            current_racer_texture = current_idle_texture;
+							// Update to appropriate texture based on current state
+							if block_system.active || block_system.rmb_held {
+								// If blocking, update to the new block texture (foot version)
+								current_racer_texture = current_block_texture;
+							} else {
+								current_racer_texture = current_idle_texture;
+							}
                         }
                     } else {
                         if shift_override_active {
@@ -6266,6 +6273,29 @@ fn main() {
 
                 if let Some(Button::Mouse(MouseButton::Right)) = e.press_args() {
                     if !block_system.is_stun_locked() && !lmb_held && !fighter.is_reloading {
+					// Force Hunter out of flight mode when blocking
+					if fighter.fighter_type == FighterType::Hunter && fighter.state == RacerState::OnBike {
+						fighter.state = RacerState::OnFoot;
+						shift_override_active = false;
+						
+						// Update textures for foot mode
+						let tex_set = &hunter_textures;
+						update_current_textures(
+							&fighter,
+							tex_set,
+							&mut current_idle_texture,
+							&mut current_fwd_texture,
+							&mut current_backpedal_texture,
+							&mut current_block_texture,
+							&mut current_block_break_texture,
+							&mut current_ranged_texture,
+							&mut current_ranged_marker_texture,
+							&mut current_ranged_blur_texture,
+							&mut current_rush_texture,
+							&mut current_strike_textures,
+							shift_held,
+						);
+					}						
                         if block_system.activate(&audio_manager) {
                             current_racer_texture = current_block_texture;
                             movement_active = false;
