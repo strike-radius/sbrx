@@ -113,6 +113,7 @@ const UFO_SPEED: f64 = 250.0;
 const UFO_SHOOT_COOLDOWN: f64 = 2.0;
 const UFO_POINTS: u32 = 200;
 const UFO_RADIUS: f64 = 25.0;
+const SAUCER_RADIUS: f64 = 80.0; // Hitbox for player collision
 const ENEMY_BULLET_SPEED: f64 = 250.0;
 const ENEMY_BULLET_LIFETIME: f64 = 2.0;
 const ENEMY_BULLET_RADIUS: f64 = 4.0;
@@ -1262,6 +1263,30 @@ impl Game {
                 }
             }
         }
+        // Player vs Flying Saucer collision (separated check from action to avoid borrow error)
+        let mut player_collided_with_saucer = false;
+        if self.player.invincible_timer <= 0.0 && !self.game_over {
+            // Immutable borrow just for the check
+            if let Some(saucer) = &self.flying_saucer {
+                let saucer_pos = [saucer.x, saucer.y];
+                if distance_sq(self.player.obj.pos, saucer_pos) < (self.player.obj.radius + SAUCER_RADIUS).powi(2) {
+                    player_collided_with_saucer = true;
+                }
+            }
+        }
+ 
+        if player_collided_with_saucer {
+            // Now perform mutable actions
+            self.player_hit();
+            if self.game_over {
+                self.death_cause = Some(FirmamentDeathCause::FlyingSaucer);
+            }
+ 
+            // Mutably borrow again for this specific action
+            if let Some(saucer) = &mut self.flying_saucer {
+                saucer.take_damage();
+            }
+        }		
     }
 	
     fn handle_rush_collisions(&mut self) {

@@ -123,6 +123,7 @@ impl FogOfWar {
         let mut enabled_fields = HashSet::new();
         // Enable fog ONLY for the rocketbay field.
         enabled_fields.insert(SbrxFieldId(-2, 5));
+		enabled_fields.insert(SbrxFieldId(-25, 25));
 
         FogOfWar {
             enabled_fields,
@@ -271,4 +272,13 @@ impl FogOfWar {
             (0, width * height, 0.0)
         }
     }
+	
+     /// Resets the fog grid for a specific field, making it fully unexplored again.
+     /// Used when entering a new bunker floor that hasn't been explored.
+     pub fn reset_field_fog(&mut self, field_id: SbrxFieldId) {
+         if self.is_fog_enabled(field_id) {
+             self.grids.remove(&field_id);
+             println!("Fog of war reset for field {:?}", field_id);
+         }
+     }	
 }

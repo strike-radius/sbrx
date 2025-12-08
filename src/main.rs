@@ -571,7 +571,7 @@ fn main() {
     let rush_distance = RUSH_DISTANCE;
     let bike_interaction_distance = BIKE_INTERACTION_DISTANCE;
     let fighter_jet_interaction_distance_var = FIGHTER_JET_INTERACTION_DISTANCE;
-    let max_stars = if PERFORMANCE_MODE { 100 } else { 300 };
+    let max_stars = if PERFORMANCE_MODE { 25 } else { 25 };
     let sky_width = 7250.0;
     let mut game_time = 0.0;
     let mut firmament_boss_defeated = false;
@@ -1164,8 +1164,8 @@ fn main() {
     let mut stars: Vec<Star> = (0..max_stars)
         .map(|_| {
             Star::new(
-                safe_gen_range(-5000.0, sky_width + 5000.0, "Star x"),
-                safe_gen_range(-5000.0, line_y - 5.0, "Star y"),
+                safe_gen_range(-250.0, sky_width + 250.0, "Star x"),
+                safe_gen_range(-250.0, line_y - 5.0, "Star y"),
             )
         })
         .collect();
@@ -1326,6 +1326,9 @@ fn main() {
     // --- WAVE SYSTEM: Track completed floors ---
     let mut completed_bunker_waves: HashSet<i32> = HashSet::new();
     let mut bunker_waves_fully_completed = false;
+	
+    // --- FOG OF WAR: Track which bunker floors have been explored ---
+    let mut explored_bunker_floors: HashSet<i32> = HashSet::new();	
 
     // --- NEW: State for persistent fighter HP and downed status ---
     let mut fighter_hp_map: HashMap<FighterType, f64> = HashMap::new();
@@ -3810,11 +3813,11 @@ fn main() {
                         spawn_timer += dt;
                         if spawn_timer >= next_spawn {
                             spheres.push(Box::new(MovingSphere::new(
-                                safe_gen_range(50.0, screen_width - 50.0, "Sphere x"),
+                                safe_gen_range(MIN_X + 50.0, MAX_X - 50.0, "Sphere x"), // meteor_areaX
                                 -10.0,
-                                safe_gen_range(150.0, 300.0, "Sphere speed"),
-                                safe_gen_range(5.0, 50.0, "Sphere size"),
-                                safe_gen_range(line_y + 20.0, screen_height, "Sphere crash_y"),
+                                safe_gen_range(1250.0, 300.0, "Sphere speed"),
+                                safe_gen_range(25.0, 50.0, "Sphere size"),
+                                safe_gen_range(line_y + 20.0, screen_height, "Sphere crash_y"), // meteor_areaY
                             )));
                             spawn_timer = 0.0;
                             next_spawn = safe_gen_range(0.3, 1.5, "Next spawn time");
@@ -6710,6 +6713,7 @@ fn main() {
 
                                 // Reset wave progress
                                 completed_bunker_waves.clear();
+								explored_bunker_floors.clear();
                                 bunker_waves_fully_completed = false;
 
                                 // Reset Razor Fiend and Grand Commander state for the restart
@@ -7790,6 +7794,7 @@ fn main() {
                                                 // --- FIX: Reset wave state on exit ---
                                                 wave_manager.reset();
                                                 completed_bunker_waves.clear();
+												explored_bunker_floors.clear();
                                                 // --- END FIX ---
                                                 SbrxFieldId(-25, 25)
                                             }
@@ -8054,6 +8059,18 @@ fn main() {
                                             }
                                             // Must clone here due to borrow checker
                                             current_area = Some(new_area.clone());
+											
+                                            // --- FOG OF WAR: Reset fog for unexplored bunker floors ---
+                                            if sbrx_map_system.current_field_id == SbrxFieldId(-25, 25)
+                                                && !explored_bunker_floors.contains(&target_floor)
+                                            {
+                                                fog_of_war.reset_field_fog(SbrxFieldId(-25, 25));
+                                                explored_bunker_floors.insert(target_floor);
+                                                println!(
+                                                    "Fog refreshed for FLATLINE_field.x0y0 FORT SILO BUNKER[{}]",
+                                                    target_floor
+                                                );
+                                            }											
 
                                             camera.x = fighter.x;
                                             camera.y = fighter.y;
@@ -8652,6 +8669,7 @@ fn main() {
                     damage_texts.clear();
                     current_area = None;
                     pulse_orbs.clear();
+					spheres.clear();
 
                     wave_manager.reset(); // BUG FIX: Reset wave state on full party wipe.
 
