@@ -5,13 +5,17 @@ use rodio::mixer::Mixer;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
+
 
 pub struct AudioManager {
     _stream: OutputStream,
     mixer: Arc<Mixer>,
     sound_effects: Arc<Mutex<HashMap<String, PathBuf>>>,
 }
+
+static LAST_PLAYED: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
 
 impl AudioManager {
     pub fn new() -> Result<Self, String> {
@@ -103,29 +107,38 @@ impl AudioManager {
 
         Ok(())
     }
-
-    /// Play a sound effect by name
+	
+/// Play a sound effect by name
     pub fn play_sound_effect(&self, name: &str) -> Result<(), String> {
-        // Debounce logic
-        static mut LAST_PLAYED: Option<std::collections::HashMap<String, std::time::Instant>> = None;
-        static ONCE: std::sync::Once = std::sync::Once::new();
+        // DEBOUNCE LOGIC (Thread-Safe Fix)
+        // We use OnceLock to lazily initialize a Mutex-protected HashMap.
+        // This removes the need for 'static mut' and 'unsafe'.
+        static LAST_PLAYED: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>> = std::sync::OnceLock::new();
 
-        unsafe {
-            ONCE.call_once(|| {
-                LAST_PLAYED = Some(std::collections::HashMap::new());
-            });
+        // Get the mutex, initializing it if this is the first call
+        let debounce_map = LAST_PLAYED.get_or_init(|| {
+            std::sync::Mutex::new(std::collections::HashMap::new())
+        });
 
-            if let Some(ref mut last_played) = LAST_PLAYED {
+        // Lock the mutex to safely access/modify the map
+        match debounce_map.lock() {
+            Ok(mut map) => {
                 let now = std::time::Instant::now();
-                if let Some(last_time) = last_played.get(name) {
+                if let Some(last_time) = map.get(name) {
                     let elapsed = now.duration_since(*last_time);
                     if elapsed.as_millis() < 50 {
-                        return Ok(());
+                        return Ok(()); // Skip playing (debounced)
                     }
                 }
-                last_played.insert(name.to_string(), now);
+                map.insert(name.to_string(), now);
+            },
+            Err(_) => {
+                // If the mutex is poisoned (a thread panicked while holding it), 
+                // we just ignore debouncing and proceed to play the sound.
             }
         }
+
+        // --- Original Audio Playback Logic Below ---
 
         // Clone path and release lock before I/O
         let path = {
