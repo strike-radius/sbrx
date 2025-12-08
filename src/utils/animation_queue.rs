@@ -18,8 +18,8 @@ impl AnimationQueue {
     /// Adds an animation to the queue if it's different from the last one
     pub fn add_animation(&mut self, name: &str, duration: f64) {
         // Only add if different from the last one
-        if self.animations.is_empty() || self.animations.last().unwrap().0 != name {
-            self.animations.push((name.to_string(), duration));
+		if self.animations.last().map_or(true, |last| last.0 != name) {
+			self.animations.push((name.to_string(), duration));
         }
     }
 

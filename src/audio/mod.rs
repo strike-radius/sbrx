@@ -102,7 +102,7 @@ impl AudioManager {
                  name, decoder.sample_rate(), decoder.channels());
 
         // If we got here, the sound file is valid
-        let mut effects = self.sound_effects.lock().unwrap();
+        let mut effects = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
         effects.insert(name.to_string(), path.clone());
 
         Ok(())
@@ -110,39 +110,25 @@ impl AudioManager {
 	
 /// Play a sound effect by name
     pub fn play_sound_effect(&self, name: &str) -> Result<(), String> {
-        // DEBOUNCE LOGIC (Thread-Safe Fix)
-        // We use OnceLock to lazily initialize a Mutex-protected HashMap.
-        // This removes the need for 'static mut' and 'unsafe'.
-        static LAST_PLAYED: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>> = std::sync::OnceLock::new();
-
-        // Get the mutex, initializing it if this is the first call
-        let debounce_map = LAST_PLAYED.get_or_init(|| {
-            std::sync::Mutex::new(std::collections::HashMap::new())
-        });
-
-        // Lock the mutex to safely access/modify the map
-        match debounce_map.lock() {
-            Ok(mut map) => {
-                let now = std::time::Instant::now();
-                if let Some(last_time) = map.get(name) {
-                    let elapsed = now.duration_since(*last_time);
-                    if elapsed.as_millis() < 50 {
-                        return Ok(()); // Skip playing (debounced)
-                    }
+        // Debounce logic (thread-safe)
+        let last_played = LAST_PLAYED.get_or_init(|| Mutex::new(HashMap::new()));
+        {
+            let mut map = last_played.lock().unwrap_or_else(|e| e.into_inner());
+            let now = Instant::now();
+ 
+            if let Some(last_time) = map.get(name) {
+                if now.duration_since(*last_time).as_millis() < 50 {
+                    return Ok(());
                 }
-                map.insert(name.to_string(), now);
-            },
-            Err(_) => {
-                // If the mutex is poisoned (a thread panicked while holding it), 
-                // we just ignore debouncing and proceed to play the sound.
             }
+            map.insert(name.to_string(), now);
         }
 
         // --- Original Audio Playback Logic Below ---
 
         // Clone path and release lock before I/O
         let path = {
-            let effects = self.sound_effects.lock().unwrap();
+            let effects = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
             effects
                 .get(name)
                 .ok_or_else(|| format!("Sound effect '{}' not found", name))?
@@ -228,7 +214,7 @@ impl AudioManager {
 		
 		// Clone path and release lock before I/O
 		let path = {
-			let effects_guard = self.sound_effects.lock().unwrap();
+			let effects_guard = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
 			effects_guard
 				.get(name)
 				.ok_or_else(|| format!("Looping sound effect '{}' not found", name))?
@@ -266,7 +252,7 @@ impl AudioManager {
     /// Play a sound effect once by name and return the Sink for control.
     pub fn play_sfx_with_sink(&self, name: &str) -> Result<Sink, String> {
         let path = {
-            let effects_guard = self.sound_effects.lock().unwrap();
+            let effects_guard = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
             effects_guard
                 .get(name)
                 .ok_or_else(|| format!("Sound effect '{}' not found", name))?
@@ -288,7 +274,7 @@ impl AudioManager {
 
  	pub fn play_sfx_with_sink_looped(&self, name: &str) -> Result<Sink, String> {
  		let path = {
- 			let effects_guard = self.sound_effects.lock().unwrap();
+ 			let effects_guard = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
  			effects_guard
  				.get(name)
  				.ok_or_else(|| format!("Sound effect '{}' not found", name))?

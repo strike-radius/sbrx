@@ -85,6 +85,11 @@ impl WaveManager {
     /// Helper to pick a variant from a weighted table.
     pub fn pick_random_variant(table: &Vec<(crate::entities::cpu_entity::CpuVariant, u32)>) -> crate::entities::cpu_entity::CpuVariant {
         use rand::Rng;
+	    // Return default if table is empty
+ 	    if table.is_empty() {
+ 	        return crate::entities::cpu_entity::CpuVariant::NightReaver;
+ 	    }		
+		
         let total_weight: u32 = table.iter().map(|(_, w)| w).sum();
         if total_weight == 0 { return crate::entities::cpu_entity::CpuVariant::NightReaver; } // Safe fallback
         
@@ -97,7 +102,8 @@ impl WaveManager {
             }
             choice -= weight;
         }
-        table.last().unwrap().0 // Fallback to last item
+	    // Safe: we checked table.is_empty() above
+ 	    table.last().map_or(crate::entities::cpu_entity::CpuVariant::NightReaver, |t| t.0)
     }	
 
     pub fn start_encounter(&mut self, total_waves: u32) {

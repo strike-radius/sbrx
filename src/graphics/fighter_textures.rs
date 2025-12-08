@@ -4,6 +4,21 @@ use find_folder::Search;
 use piston_window::*;
 use std::path::PathBuf;
 
+/// Helper function to load a texture with a descriptive error
+fn load_texture(
+	window: &mut PistonWindow,
+	path: &PathBuf,
+	name: &str,
+) -> Result<G2dTexture, String> {
+	Texture::from_path(
+		&mut window.create_texture_context(),
+		path,
+		Flip::None,
+		&TextureSettings::new(),
+	)
+	.map_err(|e| format!("Failed to load {} texture at {:?}: {}", name, path, e))
+}
+
 /// Contains all textures for a fighter type (both on foot and on bike)
 pub struct FighterTextures {
     pub idle: G2dTexture,
@@ -36,57 +51,22 @@ pub fn load_fighter_textures(
     window: &mut PistonWindow,
     fighter_type: &str,
     assets: PathBuf,
-) -> FighterTextures {
+) -> Result<FighterTextures, String> {
     // Load basic textures
     let idle_path = assets.join(format!("player/{}/idle.png", fighter_type)); // Changed
-    let idle_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &idle_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to load idle texture at {:?}: {}", idle_path, e));
+	let idle_texture = load_texture(window, &idle_path, "idle")?;
 
     let fwd_path = assets.join(format!("player/{}/fwd.png", fighter_type)); // Changed
-    let fwd_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &fwd_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to load fwd texture at {:?}: {}", fwd_path, e));
+	let fwd_texture = load_texture(window, &fwd_path, "fwd")?;
 
     let backpedal_path = assets.join(format!("player/{}/backpedal.png", fighter_type)); // Changed
-    let backpedal_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &backpedal_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load backpedal texture at {:?}: {}",
-            backpedal_path, e
-        )
-    });
+	let backpedal_texture = load_texture(window, &backpedal_path, "backpedal")?;
 
     let block_path = assets.join(format!("player/{}/block.png", fighter_type)); // Changed
-    let block_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &block_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to load block texture at {:?}: {}", block_path, e));
+	let block_texture = load_texture(window, &block_path, "block")?;
 
     let ranged_path = assets.join(format!("player/{}/ranged.png", fighter_type)); // Changed
-    let ranged_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &ranged_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to load ranged texture at {:?}: {}", ranged_path, e));
+	let ranged_texture = load_texture(window, &ranged_path, "ranged")?;
 
     let (ranged_marker_filename, ranged_blur_filename) = match fighter_type {
         "soldier" => (
@@ -100,193 +80,71 @@ pub fn load_fighter_textures(
     };
 
     let ranged_marker_path = assets.join(ranged_marker_filename);
-    let ranged_marker_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &ranged_marker_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load ranged marker texture at {:?}: {}",
-            ranged_marker_path, e
-        )
-    });
+	let ranged_marker_texture = load_texture(window, &ranged_marker_path, "ranged_marker")?;	
 
     let ranged_blur_path = assets.join(ranged_blur_filename);
-    let ranged_blur_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &ranged_blur_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load ranged blur texture at {:?}: {}",
-            ranged_blur_path, e
-        )
-    });
+	let ranged_blur_texture = load_texture(window, &ranged_blur_path, "ranged_blur")?;
 
     let rush_path = assets.join(format!("player/{}/rush.png", fighter_type)); // Changed
-    let rush_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &rush_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to load rush texture at {:?}: {}", rush_path, e));
+	let rush_texture = load_texture(window, &rush_path, "rush")?;
 
     // Load strike animation textures
     let mut strike_textures = Vec::new();
     for i in 1..=3 {
         let strike_path = assets.join(format!("player/{}/strike{}.png", fighter_type, i)); // Changed
-        let strike_texture = Texture::from_path(
-            &mut window.create_texture_context(),
-            &strike_path,
-            Flip::None,
-            &TextureSettings::new(),
-        )
-        .unwrap_or_else(|e| panic!("Failed to load strike texture at {:?}: {}", strike_path, e));
+		let strike_texture = load_texture(window, &strike_path, &format!("strike{}", i))?;
         strike_textures.push(strike_texture);
     }
 
     let block_break_path = assets.join(format!("player/{}/block_break.png", fighter_type));
-    let block_break_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &block_break_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load block_break texture at {:?}: {}",
-            block_break_path, e
-        )
-    });
+	let block_break_texture = load_texture(window, &block_break_path, "block_break")?;
 
     // Load bike textures
-    // Assuming 'racer_onBike' is a specific asset sub-folder name that might exist for both 'racer' and 'soldier' types.
     let bike_idle_path = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeIdle.png",
         fighter_type
-    )); // Changed
-    let bike_idle_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_idle_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_idle texture at {:?}: {}",
-            bike_idle_path, e
-        )
-    });
+    )); 
+	let bike_idle_texture = load_texture(window, &bike_idle_path, "bike_idle")?;
 
     let mut bike_accelerate_textures = Vec::new();
     let bike_accelerate_path1 = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeAccelerate.png",
         fighter_type
     ));
-    let bike_accelerate_texture1 = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_accelerate_path1,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_accelerate texture at {:?}: {}",
-            bike_accelerate_path1, e
-        )
-    });
+	let bike_accelerate_texture1 = load_texture(window, &bike_accelerate_path1, "bike_accelerate1")?;
     bike_accelerate_textures.push(bike_accelerate_texture1);
 
     let bike_accelerate_path2 = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeAccelerate2.png",
         fighter_type
     ));
-    let bike_accelerate_texture2 = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_accelerate_path2,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_accelerate2 texture at {:?}: {}",
-            bike_accelerate_path2, e
-        )
-    });
+	let bike_accelerate_texture2 = load_texture(window, &bike_accelerate_path2, "bike_accelerate2")?;
     bike_accelerate_textures.push(bike_accelerate_texture2);
 
     let bike_slide_path = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeSlide.png",
         fighter_type
     )); // Changed
-    let bike_slide_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_slide_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_slide texture at {:?}: {}",
-            bike_slide_path, e
-        )
-    });
+	let bike_slide_texture = load_texture(window, &bike_slide_path, "bike_slide")?;
+
 
     let bike_block_path = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeBlock.png",
         fighter_type
     )); // Changed
-    let bike_block_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_block_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_block texture at {:?}: {}",
-            bike_block_path, e
-        )
-    });
+	let bike_block_texture = load_texture(window, &bike_block_path, "bike_block")?;
 
     let bike_ranged_path = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeRanged.png",
         fighter_type
     )); // Changed
-    let bike_ranged_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_ranged_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_ranged texture at {:?}: {}",
-            bike_ranged_path, e
-        )
-    });
+	let bike_ranged_texture = load_texture(window, &bike_ranged_path, "bike_ranged")?;
 
     let bike_rush_path = assets.join(format!(
         "player/{}/racer_onBike/rcrBikeRush.png",
         fighter_type
     )); // Changed
-    let bike_rush_texture = Texture::from_path(
-        &mut window.create_texture_context(),
-        &bike_rush_path,
-        Flip::None,
-        &TextureSettings::new(),
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load bike_rush texture at {:?}: {}",
-            bike_rush_path, e
-        )
-    });
+	let bike_rush_texture = load_texture(window, &bike_rush_path, "bike_rush")?;	
 
     // Load bike strike textures
     let mut bike_strike_textures = Vec::new();
@@ -295,18 +153,7 @@ pub fn load_fighter_textures(
             "player/{}/racer_onBike/rcrBikeStrike{}.png",
             fighter_type, i
         )); // Changed
-        let bike_strike_texture = Texture::from_path(
-            &mut window.create_texture_context(),
-            &bike_strike_path,
-            Flip::None,
-            &TextureSettings::new(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to load bike_strike texture at {:?}: {}",
-                bike_strike_path, e
-            )
-        });
+	let bike_strike_texture = load_texture(window, &bike_strike_path, &format!("bike_strike{}", i))?;
         bike_strike_textures.push(bike_strike_texture);
     }
 	
@@ -337,7 +184,7 @@ pub fn load_fighter_textures(
         (None, None, None, None)
     };	
 
-    FighterTextures {
+    Ok(FighterTextures {
         idle: idle_texture,
         fwd: fwd_texture,
         backpedal: backpedal_texture,
@@ -359,7 +206,7 @@ pub fn load_fighter_textures(
         backpedal_boost,
         bike_accelerate_boost,
         bike_slide_boost,		
-    }
+    })
 }
 
 /// Helper function to update current texture references based on fighter state and type

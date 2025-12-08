@@ -493,6 +493,20 @@ fn award_kill_score(
     }
 }
 
+/// Helper to load a texture or exit with error message
+fn load_texture_or_exit(
+    texture_context: &mut G2dTextureContext,
+    path: &Path,
+    settings: &TextureSettings,
+    name: &str,
+) -> G2dTexture {
+    Texture::from_path(texture_context, path, Flip::None, settings)
+        .unwrap_or_else(|e| {
+            eprintln!("Fatal: Failed to load {} texture at {:?}: {}", name, path, e);
+            std::process::exit(1);
+        })
+}
+
 fn load_cpu_textures(
     texture_context: &mut G2dTextureContext,
     assets_path: &Path,
@@ -501,13 +515,16 @@ fn load_cpu_textures(
     let mut textures = Vec::new();
     let settings = TextureSettings::new();
     let base_path = assets_path.join(format!("entity/{}/{}.png", variant_folder, variant_folder));
-    let base_texture = Texture::from_path(texture_context, &base_path, Flip::None, &settings)
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to load {} base texture at {:?}: {}",
-                variant_folder, base_path, e
-            )
-        });
+	let base_texture = match Texture::from_path(texture_context, &base_path, Flip::None, &settings) {
+		Ok(tex) => tex,
+		Err(e) => {
+			eprintln!(
+				"Fatal: Failed to load {} base texture at {:?}: {}",
+				variant_folder, base_path, e
+			);
+			std::process::exit(1);
+		}
+	};
     textures.push(base_texture);
     for i in 1..=3 {
         let strike_path = assets_path.join(format!(
@@ -515,15 +532,16 @@ fn load_cpu_textures(
             variant_folder, variant_folder, i
         ));
         if strike_path.exists() {
-            textures.push(
-                Texture::from_path(texture_context, &strike_path, Flip::None, &settings)
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "Failed to load {} strike{} texture at {:?}: {}",
-                            variant_folder, i, strike_path, e
-                        )
-                    }),
-            );
+			match Texture::from_path(texture_context, &strike_path, Flip::None, &settings) {
+				Ok(tex) => textures.push(tex),
+				Err(e) => {
+					eprintln!(
+						"Fatal: Failed to load {} strike{} texture at {:?}: {}",
+						variant_folder, i, strike_path, e
+					);
+					std::process::exit(1);
+				}
+			}
         } else {
             if let Some(first_tex) = textures.first().cloned() {
                 textures.push(first_tex);
@@ -534,10 +552,11 @@ fn load_cpu_textures(
         if let Some(first_tex) = textures.first().cloned() {
             textures.push(first_tex);
         } else {
-            panic!(
+            eprintln!(
                 "No textures loaded for CPU variant {}, cannot create fallbacks.",
                 variant_folder
             );
+			std::process::exit(1);
         }
     }
     textures
@@ -626,11 +645,27 @@ fn main() {
 
     println!("Initializing sbrx0.1.95 game with line_y = {}", line_y);
 
-    let exe_path = env::current_exe().expect("Failed to get executable path");
-    let exe_dir = exe_path
-        .parent()
-        .expect("Failed to get executable directory");
-    let audio_manager = AudioManager::new().expect("Failed to initialize audio");
+ 	let exe_path = match env::current_exe() {
+ 	    Ok(path) => path,
+ 	    Err(e) => {
+ 	        eprintln!("Fatal: Failed to get executable path: {}", e);
+ 	        std::process::exit(1);
+ 	    }
+ 	};
+ 	let exe_dir = match exe_path.parent() {
+ 	    Some(dir) => dir,
+ 	    None => {
+ 	        eprintln!("Fatal: Failed to get executable directory");
+ 	        std::process::exit(1);
+ 	    }
+ 	};
+ 	let audio_manager = match AudioManager::new() {
+ 	    Ok(manager) => manager,
+ 	    Err(e) => {
+ 	        eprintln!("Fatal: Failed to initialize audio: {}", e);
+ 	        std::process::exit(1);
+ 	    }
+ 	};
     audio_manager
         .load_sfx_directory(&exe_dir)
         .unwrap_or_else(|e| {
@@ -646,7 +681,10 @@ fn main() {
             .decorated(false)
             .exit_on_esc(false)
             .build()
-            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
+ 	        .unwrap_or_else(|e| {
+ 	            eprintln!("Fatal: Failed to build PistonWindow: {}", e);
+ 	            std::process::exit(1);
+ 	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
     println!("sbrx0.1.95 Window created.");
@@ -690,112 +728,116 @@ fn main() {
     let texture_settings = TextureSettings::new();
     for (name, path) in ground_asset_paths.iter() {
         let full_path = sbrx_assets_path.join(path);
-        let texture = Texture::from_path(
+        match Texture::from_path(
             &mut texture_context,
             &full_path,
             Flip::None,
             &texture_settings,
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to load ground asset texture at {:?}: {}",
-                full_path, e
-            )
-        });
-        ground_asset_textures.insert(name.to_string(), texture);
+ 	    ) {
+ 	        Ok(texture) => {
+ 	            ground_asset_textures.insert(name.to_string(), texture);
+ 	        }
+ 	        Err(e) => {
+ 	            eprintln!(
+ 	                "Fatal: Failed to load ground asset texture '{}' at {:?}: {}",
+ 	                name, full_path, e
+ 	            );
+ 	            std::process::exit(1);
+ 	        }
+ 	    }
     }
 
     let font_path = sbrx_assets_path.join("fonts").join("Segment16A.ttf");
-    let mut glyphs = window.load_font(font_path.clone()).unwrap_or_else(|e| {
-        eprintln!(
-            "Failed to load font at {:?}: {}. Attempting fallback.",
-            font_path, e
-        );
-        let fallback_font_path_win = Path::new("C:\\Windows\\Fonts\\arial.ttf");
-        let fallback_font_path_linux = Path::new("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
-        if fallback_font_path_win.exists() {
-            window
-                .load_font(fallback_font_path_win)
-                .unwrap_or_else(|fe| {
-                    panic!(
-                        "Failed to load Windows fallback font: {:?}, original error: {:?}",
-                        fe, e
-                    )
-                })
-        } else if fallback_font_path_linux.exists() {
-            window
-                .load_font(fallback_font_path_linux)
-                .unwrap_or_else(|fe| {
-                    panic!(
-                        "Failed to load Linux fallback font: {:?}, original error: {:?}",
-                        fe, e
-                    )
-                })
-        } else {
-            panic!(
-                "Failed to load primary font and no fallback fonts found: original error: {:?}",
-                e
-            )
-        }
-    });
+	let mut glyphs = match window.load_font(font_path.clone()) {
+ 	    Ok(g) => g,
+ 	    Err(e) => {
+ 	        eprintln!(
+ 	            "Failed to load font at {:?}: {}. Attempting fallback.",
+ 	            font_path, e
+ 	        );
+ 	        let fallback_font_path_win = Path::new("C:\\Windows\\Fonts\\arial.ttf");
+ 	        let fallback_font_path_linux = Path::new("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+ 	        if fallback_font_path_win.exists() {
+ 	            match window.load_font(fallback_font_path_win) {
+ 	                Ok(g) => g,
+ 	                Err(fe) => {
+ 	                    eprintln!(
+ 	                        "Fatal: Failed to load Windows fallback font: {:?}, original error: {:?}",
+ 	                        fe, e
+ 	                    );
+ 	                    std::process::exit(1);
+ 	                }
+ 	            }
+ 	        } else if fallback_font_path_linux.exists() {
+ 	            match window.load_font(fallback_font_path_linux) {
+ 	                Ok(g) => g,
+ 	                Err(fe) => {
+ 	                    eprintln!(
+ 	                        "Fatal: Failed to load Linux fallback font: {:?}, original error: {:?}",
+ 	                        fe, e
+ 	                    );
+ 	                    std::process::exit(1);
+ 	                }
+ 	            }
+ 	        } else {
+ 	            eprintln!(
+ 	                "Fatal: Failed to load primary font and no fallback fonts found: original error: {:?}",
+ 	                e
+ 	            );
+ 	            std::process::exit(1);
+ 	        }
+ 	    }
+ 	};
 
-    let title_screen_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("sabercrossTITLE.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load title tex");
-    let pause_screen_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("pause_screen1.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load pause screen tex");
-    let inputs_display_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("inputs.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load inputs tex");
-    let block_fatigue_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("block_fatigue.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load block_fatigue tex");
-    let flicker_strike_effect_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("effects/FlickerStrikeEffect.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load FlickerStrikeEffect.png tex");
+ 	let title_screen_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("sabercrossTITLE.png"),
+ 	    &texture_settings,
+ 	    "title_screen",
+ 	);
+ 	let pause_screen_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("pause_screen1.png"),
+ 	    &texture_settings,
+ 	    "pause_screen",
+ 	);
+ 	let inputs_display_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("inputs.png"),
+ 	    &texture_settings,
+ 	    "inputs_display",
+ 	);
+ 	let block_fatigue_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("block_fatigue.png"),
+ 	    &texture_settings,
+ 	    "block_fatigue",
+ 	);
+ 	let flicker_strike_effect_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("effects/FlickerStrikeEffect.png"),
+ 	    &texture_settings,
+ 	    "flicker_strike_effect",
+ 	);
 
-    let kinetic_strike_effect_texture1 = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("effects/KineticStrikeEffect1.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load KineticStrikeEffect1.png tex");
-    let kinetic_strike_effect_texture2 = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("effects/KineticStrikeEffect2.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load KineticStrikeEffect2.png tex");
-    let kinetic_strike_effect_texture3 = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("effects/KineticStrikeEffect3.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load KineticStrikeEffect3.png tex");
+ 	let kinetic_strike_effect_texture1 = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("effects/KineticStrikeEffect1.png"),
+ 	    &texture_settings,
+ 	    "kinetic_strike_effect1",
+ 	);
+ 	let kinetic_strike_effect_texture2 = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("effects/KineticStrikeEffect2.png"),
+ 	    &texture_settings,
+ 	    "kinetic_strike_effect2",
+ 	);
+	let kinetic_strike_effect_texture3 = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("effects/KineticStrikeEffect3.png"),
+ 	    &texture_settings,
+ 	    "kinetic_strike_effect3",
+ 	);
 
     let kinetic_strike_textures = vec![
         kinetic_strike_effect_texture1,
@@ -803,102 +845,98 @@ fn main() {
         kinetic_strike_effect_texture3,
     ];
 
-    let aim_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("aim.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load aim tex");
-    let strike_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("strike.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load strike tex");
-    let track_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("racetrack.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load track tex");
-    let rocketbay_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("rocketbay.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Load rocketbay tex");
+ 	let aim_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("aim.png"),
+ 	    &texture_settings,
+ 	    "aim",
+ 	);
+ 	let strike_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("strike.png"),
+ 	    &texture_settings,
+ 	    "strike",
+ 	);
+ 	let track_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("racetrack.png"),
+ 	    &texture_settings,
+ 	    "track",
+ 	);
+ 	let rocketbay_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("rocketbay.png"),
+ 	    &texture_settings,
+ 	    "rocketbay",
+ 	);
+	
     let info_post_texture_path = sbrx_assets_path.join("info_post.png");
-    let info_post_texture = Texture::from_path(
-        &mut texture_context,
-        &info_post_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load info_post.png texture");
+ 	let info_post_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &info_post_texture_path,
+ 	    &texture_settings,
+ 	    "info_post",
+ 	);
     let fort_silo_texture_path = sbrx_assets_path.join("fort_silo.png");
-    let fort_silo_texture = Texture::from_path(
-        &mut texture_context,
-        &fort_silo_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load fort_silo.png texture");
+ 	let fort_silo_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &fort_silo_texture_path,
+ 	    &texture_settings,
+ 	    "fort_silo",
+ 	);
     let remains_texture_path = sbrx_assets_path.join("remains.png");
-    let remains_texture = Texture::from_path(
-        &mut texture_context,
-        &remains_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load remains texture at {:?}: {}",
-            remains_texture_path, e
-        )
-    });
+ 	let remains_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &remains_texture_path,
+ 	    &texture_settings,
+ 	    "remains",
+ 	);
     let hunter_block_break_nest_texture_path =
         sbrx_assets_path.join("player/hunter/block_break.png");
-    let hunter_block_break_nest_texture = Texture::from_path(
-        &mut texture_context,
-        &hunter_block_break_nest_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load hunter block_break texture for nest at {:?}: {}",
-            hunter_block_break_nest_texture_path, e
-        )
-    });
+ 	let hunter_block_break_nest_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &hunter_block_break_nest_texture_path,
+ 	    &texture_settings,
+ 	    "hunter_block_break_nest",
+ 	);
 
     // --- NEW: Load ground textures ---
     let ground_texture_path = sbrx_assets_path.join("ground/ground_texture.png");
     let mut ground_textures = Vec::new();
     let flips = [Flip::None, Flip::Horizontal, Flip::Vertical, Flip::Both];
     for flip in &flips {
-        ground_textures.push(
-            Texture::from_path(
-                &mut texture_context,
-                &ground_texture_path,
-                *flip,
-                &texture_settings,
-            )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to load ground texture at {:?}: {}",
-                    ground_texture_path, e
-                )
-            }),
-        );
+	    match Texture::from_path(
+ 	        &mut texture_context,
+ 	        &ground_texture_path,
+ 	        *flip,
+ 	        &texture_settings,
+ 	    ) {
+ 	        Ok(tex) => ground_textures.push(tex),
+ 	        Err(e) => {
+ 	            eprintln!(
+ 	                "Fatal: Failed to load ground texture at {:?} with flip {:?}: {}",
+ 	                ground_texture_path, flip, e
+ 	            );
+ 	            std::process::exit(1);
+ 	        }
+ 	    }
     }
 
-    let racer_textures = load_fighter_textures(&mut window, "racer", sbrx_assets_path.clone());
-    let soldier_textures = load_fighter_textures(&mut window, "soldier", sbrx_assets_path.clone());
-    let hunter_textures = load_fighter_textures(&mut window, "hunter", sbrx_assets_path.clone());
+	    let racer_textures = load_fighter_textures(&mut window, "racer", sbrx_assets_path.clone())
+	        .unwrap_or_else(|e| {
+	            eprintln!("Fatal error loading racer textures: {}", e);
+	            std::process::exit(1);
+	        });
+	    let soldier_textures = load_fighter_textures(&mut window, "soldier", sbrx_assets_path.clone())
+	        .unwrap_or_else(|e| {
+	            eprintln!("Fatal error loading soldier textures: {}", e);
+	            std::process::exit(1);
+	        });
+	    let hunter_textures = load_fighter_textures(&mut window, "hunter", sbrx_assets_path.clone())
+	        .unwrap_or_else(|e| {
+	            eprintln!("Fatal error loading hunter textures: {}", e);
+	            std::process::exit(1);
+	        });
     let mut current_idle_texture = &racer_textures.idle;
     let mut current_fwd_texture = &racer_textures.fwd;
     let mut current_backpedal_texture = &racer_textures.backpedal;
@@ -911,67 +949,45 @@ fn main() {
     let mut current_ranged_blur_texture = &racer_textures.ranged_blur;
     let mut current_racer_texture = current_idle_texture;
     let sbrx_bike_texture_path = sbrx_assets_path.join("player/racer/sbrx_bike.png");
-    let sbrx_bike_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_bike_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Load bike tex failed for {:?}: {}",
-            sbrx_bike_texture_path, e
-        )
-    });
+ 	let sbrx_bike_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_bike_texture_path,
+ 	    &texture_settings,
+ 	    "sbrx_bike",
+ 	);
     let sbrx_quad_texture_path = sbrx_assets_path.join("player/soldier/quad.png");
-    let sbrx_quad_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_quad_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Load quad tex failed for {:?}: {}",
-            sbrx_quad_texture_path, e
-        )
-    });
+ 	let sbrx_quad_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_quad_texture_path,
+ 	    &texture_settings,
+ 	    "sbrx_quad",
+ 	);
 
     // Load Pulse Orb Texture
     let pulse_orb_texture_path = sbrx_assets_path.join("projectile/pulse_orb.png");
-    let pulse_orb_texture = Texture::from_path(
-        &mut texture_context,
-        &pulse_orb_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load pulse_orb texture at {:?}: {}",
-            pulse_orb_texture_path, e
-        );
-    });
+ 	let pulse_orb_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &pulse_orb_texture_path,
+ 	    &texture_settings,
+ 	    "pulse_orb",
+ 	);
 	
     // Load Shift Function Indicator Textures
     let set_boost_texture_path = sbrx_assets_path.join("set_boost.png");
-    let set_boost_texture = Texture::from_path(
-        &mut texture_context,
-        &set_boost_texture_path,
-        Flip::None,
-        &texture_settings,
-    ).unwrap_or_else(|e| {
-        panic!("Failed to load set_boost texture: {}", e);
-    });
+ 	let set_boost_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &set_boost_texture_path,
+ 	    &texture_settings,
+ 	    "set_boost",
+ 	);
  
     let set_ranged_texture_path = sbrx_assets_path.join("set_ranged.png");
-    let set_ranged_texture = Texture::from_path(
-        &mut texture_context,
-        &set_ranged_texture_path,
-        Flip::None,
-        &texture_settings,
-    ).unwrap_or_else(|e| {
-        panic!("Failed to load set_ranged texture: {}", e);
-    });	
+ 	let set_ranged_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &set_ranged_texture_path,
+ 	    &texture_settings,
+ 	    "set_ranged",
+ 	);
 
     // --- NEW: Load Group Icon Textures ---
     let mut group_icons: HashMap<FighterType, G2dTexture> = HashMap::new();
@@ -989,30 +1005,18 @@ fn main() {
         let icon_selected_path =
             sbrx_assets_path.join(format!("player/{}/group_icon_selected.png", name));
 
-        let icon_tex = Texture::from_path(
-            &mut texture_context,
-            &icon_path,
-            Flip::None,
-            &texture_settings,
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to load group icon for {} at {:?}: {}",
-                name, icon_path, e
-            )
-        });
-        let icon_selected_tex = Texture::from_path(
-            &mut texture_context,
-            &icon_selected_path,
-            Flip::None,
-            &texture_settings,
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to load selected group icon for {} at {:?}: {}",
-                name, icon_selected_path, e
-            )
-        });
+ 	    let icon_tex = load_texture_or_exit(
+ 	        &mut texture_context,
+ 	        &icon_path,
+ 	        &texture_settings,
+ 	        &format!("{}_group_icon", name),
+ 	    );
+ 	    let icon_selected_tex = load_texture_or_exit(
+ 	        &mut texture_context,
+ 	        &icon_selected_path,
+ 	        &texture_settings,
+ 	        &format!("{}_group_icon_selected", name),
+ 	    );
 
         group_icons.insert(fighter_type_enums[i], icon_tex);
         group_icons_selected.insert(fighter_type_enums[i], icon_selected_tex);
@@ -1040,108 +1044,82 @@ fn main() {
         load_cpu_textures(&mut texture_context, &sbrx_assets_path, "razor_fiend");
 
     let grand_commander_down_texture_path = sbrx_assets_path.join("grand_commanderDown.png");
-    let grand_commander_down_texture = Texture::from_path(
-        &mut texture_context,
-        &grand_commander_down_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load grand_commanderDown.png texture");
+ 	let grand_commander_down_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &grand_commander_down_texture_path,
+ 	    &texture_settings,
+ 	    "grand_commander_down",
+ 	);
 
     let grand_commander_texture_path = sbrx_assets_path.join("grand_commander.png");
-    let grand_commander_texture = Texture::from_path(
-        &mut texture_context,
-        &grand_commander_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load grand_commander.png texture");
+ 	let grand_commander_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &grand_commander_texture_path,
+ 	    &texture_settings,
+ 	    "grand_commander",
+ 	);
 
     let fighter_jet_texture_path = sbrx_assets_path.join("vehicle/fighter_jet.png");
-    let fighter_jet_texture = Texture::from_path(
-        &mut texture_context,
-        &fighter_jet_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load fighter_jet texture at {:?}: {}",
-            fighter_jet_texture_path, e
-        )
-    });
+	let fighter_jet_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &fighter_jet_texture_path,
+ 	    &texture_settings,
+ 	    "fighter_jet",
+ 	);
 
     let fuel_pump_texture_path = sbrx_assets_path.join("FuelPump.png");
-    let fuel_pump_texture = Texture::from_path(
-        &mut texture_context,
-        &fuel_pump_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load FuelPump texture at {:?}: {}",
-            fuel_pump_texture_path, e
-        )
-    });
+	let fuel_pump_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &fuel_pump_texture_path,
+ 	    &texture_settings,
+ 	    "fuel_pump",
+ 	);
 
     // Position at top-left of playable area (MIN_X, MIN_Y is horizon line)
     let fuel_pump = FuelPump::new(MIN_X + 50.0, MIN_Y + 50.0);
 
     let crashed_fighter_jet_texture_path = sbrx_assets_path.join("vehicle/crashed_fighter_jet.png");
-    let crashed_fighter_jet_texture = Texture::from_path(
-        &mut texture_context,
-        &crashed_fighter_jet_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load crashed_fighter_jet texture at {:?}: {}",
-            crashed_fighter_jet_texture_path, e
-        )
-    });
+	let crashed_fighter_jet_texture = load_texture_or_exit(
+	    &mut texture_context,
+	    &crashed_fighter_jet_texture_path,
+	    &texture_settings,
+	    "crashed_fighter_jet",
+	);
+
     let raptor_nest_texture_path = sbrx_assets_path.join("raptor_nest.png");
-    let raptor_nest_texture = Texture::from_path(
-        &mut texture_context,
-        &raptor_nest_texture_path,
-        Flip::None,
-        &texture_settings,
-    )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to load raptor_nest texture at {:?}: {}",
-            raptor_nest_texture_path, e
-        )
-    });
-    let loading_screen_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("loading_screen.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load loading_screen.png texture");
-    let racer_lineup_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("RacerLineup.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load RacerLineup.png texture");
-    let race_spectators_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("RaceSpectators.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load RaceSpectators.png texture");
-    let race_spectators2_texture = Texture::from_path(
-        &mut texture_context,
-        &sbrx_assets_path.join("RaceSpectators2.png"),
-        Flip::None,
-        &texture_settings,
-    )
-    .expect("Failed to load RaceSpectators2.png texture");
+	let raptor_nest_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &raptor_nest_texture_path,
+ 	    &texture_settings,
+ 	    "raptor_nest",
+ 	);
+	
+	let loading_screen_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("loading_screen.png"),
+ 	    &texture_settings,
+ 	    "loading_screen",
+ 	);
+	
+	let racer_lineup_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("RacerLineup.png"),
+ 	    &texture_settings,
+ 	    "racer_lineup",
+ 	);
+	
+	let race_spectators_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("RaceSpectators.png"),
+ 	    &texture_settings,
+ 	    "race_spectators",
+ 	);
+ 	let race_spectators2_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("RaceSpectators2.png"),
+ 	    &texture_settings,
+ 	    "race_spectators2",
+ 	);
     let mut sbrx_bike = SbrxBike::new(line_y);
     let mut fighter = Fighter::new(sbrx_bike.x + 100.0, sbrx_bike.y);
     let mut lvl_up_state = LvlUpState::None;
@@ -2437,11 +2415,12 @@ fn main() {
                                 if moving_towards_mouse {
                                     let anim_vec = match fighter.fighter_type {
                                         FighterType::Racer => {
-                                            if fighter.boost && shift_held && racer_textures.bike_accelerate_boost.is_some() {
-                                                racer_textures.bike_accelerate_boost.as_ref().unwrap()
-                                            } else {
-                                                &racer_textures.bike_accelerate
-                                            }
+											if fighter.boost && shift_held {
+												racer_textures.bike_accelerate_boost.as_ref()
+													.unwrap_or(&racer_textures.bike_accelerate)
+											} else {
+												&racer_textures.bike_accelerate
+											}
                                         },
                                         FighterType::Soldier => &soldier_textures.bike_accelerate,
                                         FighterType::Hunter => &hunter_textures.bike_accelerate,
@@ -2624,8 +2603,11 @@ fn main() {
                         // This logic is adapted from the F1 key press handler
                         fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                         let new_radius = fighter.switch_fighter_type(FighterType::Racer);
-                        fixed_crater.radius = new_radius;
-                        fighter.stats = *fighter_stats_map.get(&FighterType::Racer).unwrap();
+                        fixed_crater.radius = new_radius;						
+						fighter.stats = fighter_stats_map
+							.get(&FighterType::Racer)
+							.copied()
+							.unwrap_or(combat::stats::RACER_LVL1_STATS);							
                         fighter.max_hp = fighter.stats.defense.hp;
                         fighter.melee_damage = fighter.stats.attack.melee_damage;
                         fighter.ranged_damage = fighter.stats.attack.ranged_damage;
@@ -5848,9 +5830,8 @@ fn main() {
                                 )
                                 .unwrap_or_else(|e| eprintln!("Failed to draw damage text: {}", e));
                         }
-                        let field_display_text = if current_area.is_some() {
-                            let area_ref = current_area.as_ref().unwrap();
-                            match area_ref.area_type {
+						let field_display_text = if let Some(area_ref) = current_area.as_ref() {
+							match area_ref.area_type {
                                 AreaType::RaptorNest => format!(
                                     "FLATLINE_field.x[1]y[0] RAPTOR NEST[{}]",
                                     area_ref.floor
@@ -6112,12 +6093,10 @@ fn main() {
 
                         if show_bunker_floor_transition_prompt {
                             if let Some(target_floor) = target_floor_from_prompt {
-                                let prompt_text =
-                                    if target_floor > current_area.as_ref().unwrap().floor {
-                                        "ASCEND [E]"
-                                    } else {
-                                        "DESCEND [E]"
-                                    };
+								let prompt_text = match current_area.as_ref() {
+									Some(area) if target_floor > area.floor => "ASCEND [E]",
+									_ => "DESCEND [E]",
+								};
                                 let prompt_font_size = 20;
                                 let prompt_color = [1.0, 1.0, 0.0, 1.0];
                                 let text_width =
@@ -7325,7 +7304,10 @@ fn main() {
                                         fighter.switch_fighter_type(FighterType::Racer);
                                     fixed_crater.radius = new_radius;
                                     fighter.stats =
-                                        *fighter_stats_map.get(&FighterType::Racer).unwrap();
+										fighter_stats_map
+											.get(&FighterType::Racer)
+											.copied()
+											.unwrap_or(combat::stats::RACER_LVL1_STATS);
                                     fighter.max_hp = fighter.stats.defense.hp;
                                     fighter.melee_damage = fighter.stats.attack.melee_damage;
                                     fighter.ranged_damage = fighter.stats.attack.ranged_damage;
@@ -7396,7 +7378,10 @@ fn main() {
                                         fighter.switch_fighter_type(FighterType::Soldier);
                                     fixed_crater.radius = new_radius;
                                     fighter.stats =
-                                        *fighter_stats_map.get(&FighterType::Soldier).unwrap();
+										fighter_stats_map
+											.get(&FighterType::Soldier)
+											.copied()
+											.unwrap_or(combat::stats::SOLDIER_LVL1_STATS);
                                     fighter.max_hp = fighter.stats.defense.hp;
                                     fighter.melee_damage = fighter.stats.attack.melee_damage;
                                     fighter.ranged_damage = fighter.stats.attack.ranged_damage;
@@ -7466,7 +7451,10 @@ fn main() {
                                         fighter.switch_fighter_type(FighterType::Hunter);
                                     fixed_crater.radius = new_radius;
                                     fighter.stats =
-                                        *fighter_stats_map.get(&FighterType::Hunter).unwrap();
+										fighter_stats_map
+											.get(&FighterType::Hunter)
+											.copied()
+											.unwrap_or(combat::stats::HUNTER_LVL1_STATS);
                                     fighter.max_hp = fighter.stats.defense.hp;
                                     fighter.melee_damage = fighter.stats.attack.melee_damage;
                                     fighter.ranged_damage = fighter.stats.attack.ranged_damage;
@@ -8434,7 +8422,10 @@ fn main() {
                     fighter.stat_points_to_spend = saved_stat_points;
 
                     // Reload the Racer's leveled-up stats from the persistent map
-                    let racer_stats = *base_fighter_stats_map.get(&FighterType::Racer).unwrap();
+					let racer_stats = base_fighter_stats_map
+						.get(&FighterType::Racer)
+						.copied()
+						.unwrap_or(combat::stats::RACER_LVL1_STATS);
                     fighter.stats = racer_stats;
                     fighter.max_hp = racer_stats.defense.hp;
                     fighter.melee_damage = racer_stats.attack.melee_damage;
@@ -8783,14 +8774,24 @@ fn main() {
 
                                 // --- BUG FIX ---
                                 // Reload the correct, leveled-up stats for the selected fighter.
-                                fighter.stats = *fighter_stats_map.get(&target_fighter).unwrap();
+								fighter.stats = fighter_stats_map
+									.get(&target_fighter)
+									.copied()
+									.unwrap_or_else(|| match target_fighter {
+										FighterType::Racer => combat::stats::RACER_LVL1_STATS,
+										FighterType::Soldier => combat::stats::SOLDIER_LVL1_STATS,
+										FighterType::Hunter => combat::stats::HUNTER_LVL1_STATS,
+									});
                                 fighter.max_hp = fighter.stats.defense.hp;
                                 fighter.melee_damage = fighter.stats.attack.melee_damage;
                                 fighter.ranged_damage = fighter.stats.attack.ranged_damage;
                                 fighter.run_speed = fighter.stats.speed.run_speed;
                                 // --- END FIX ---
 
-                                fighter.current_hp = *fighter_hp_map.get(&target_fighter).unwrap();
+								fighter.current_hp = fighter_hp_map
+									.get(&target_fighter)
+									.copied()
+									.unwrap_or(fighter.max_hp);
 
                                 // --- BUG FIX: Restore LVL_UP prompt after respawn ---
                                 lvl_up_state = LvlUpState::None; // Reset UI state first
