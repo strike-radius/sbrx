@@ -249,9 +249,9 @@ fn spawn_particles(particles: &mut Vec<Particle>, pos_x: f64, pos_y: f64, count:
     let base_size = 10.0;
 
     for _ in 0..count {
-        let angle = rng.gen_range(0.0..std::f64::consts::TAU);
-        let speed = rng.gen_range(speed_range.0..speed_range.1);
-        let lifetime = rng.gen_range(lifetime_range.0..lifetime_range.1);
+        let angle = rng.random_range(0.0..std::f64::consts::TAU);
+        let speed = rng.random_range(speed_range.0..speed_range.1);
+        let lifetime = rng.random_range(lifetime_range.0..lifetime_range.1);
 
         particles.push(Particle {
             pos: Vec2d::new(pos_x, pos_y),
@@ -604,7 +604,7 @@ fn main() {
             5 // Stage 1 includes the first 5 variants
         };
 
-        let variant_choice = rng.gen_range(0..max_variant);
+        let variant_choice = rng.random_range(0..max_variant);
 
         // All arena enemies can spawn anywhere on the map
         let x = safe_gen_range(MIN_X, MAX_X, "random_spawn_x");
@@ -5201,8 +5201,8 @@ fn main() {
                                     (1.0, 50.0, [0.8, 0.8, 1.0, 0.7], 1.5),   // Secondary
                                     (1.0, 75.0, [0.7, 0.7, 0.9, 0.5], 1.0),   // Tertiary
                                 ] {
-                                    let ox = rng.gen_range(-ofr..ofr);
-                                    let oy = rng.gen_range(-ofr..ofr);
+                                    let ox = rng.random_range(-ofr..ofr);
+                                    let oy = rng.random_range(-ofr..ofr);
                                     let efx = sx + ndx * bls * lm + ox;
                                     let efy = sy + ndy * bls * lm + oy;
                                     let col = [base_col[0], base_col[1], base_col[2], base_col[3] * alpha];
@@ -5796,7 +5796,7 @@ fn main() {
                             //                                line([1.0, 1.0, 1.0, 0.8], 2.0, [sx, sy, ex, ey], tc.transform, g);
                             //                            }
                             if bls > 0.0 {
-                                let mut ers = rand::thread_rng();
+                                let mut ers = rand::rng();
                                 for (lm, ofr, col, w) in [
                                     (0.7, 5.0, [0.8, 0.8, 1.0, 0.7], 1.0),
                                     (1.2, 8.0, [0.7, 0.7, 0.9, 0.6], 1.5),

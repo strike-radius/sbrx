@@ -79,7 +79,7 @@ impl AreaState {
         // Always at the bottom for Bunker, random for RaptorNest
         let (exit_to_world, player_start_pos) = if area_type == AreaType::Bunker {
             // Bottom edge for Bunker exit
-            let x_pos = origin_x + rng.gen_range(0.0..width - exit_line_length);
+            let x_pos = origin_x + rng.random_range(0.0..width - exit_line_length);
             let ep = ExitPoint {
                 x: x_pos,
                 y: origin_y + height - exit_line_thickness,
@@ -94,11 +94,11 @@ impl AreaState {
             (ep, psp)
         } else {
             // Original random side logic for RaptorNest
-            let side = rng.gen_range(0..4); // 0: top, 1: right, 2: bottom, 3: left
+            let side = rng.random_range(0..4); // 0: top, 1: right, 2: bottom, 3: left
             match side {
                 0 => {
                     // Top edge
-                    let x_pos = origin_x + rng.gen_range(0.0..width - exit_line_length);
+                    let x_pos = origin_x + rng.random_range(0.0..width - exit_line_length);
                     let ep = ExitPoint {
                         x: x_pos,
                         y: origin_y,
@@ -113,7 +113,7 @@ impl AreaState {
                 }
                 1 => {
                     // Right edge
-                    let y_pos = origin_y + rng.gen_range(0.0..height - exit_line_length);
+                    let y_pos = origin_y + rng.random_range(0.0..height - exit_line_length);
                     let ep = ExitPoint {
                         x: origin_x + width - exit_line_thickness,
                         y: y_pos,
@@ -128,7 +128,7 @@ impl AreaState {
                 }
                 2 => {
                     // Bottom edge
-                    let x_pos = origin_x + rng.gen_range(0.0..width - exit_line_length);
+                    let x_pos = origin_x + rng.random_range(0.0..width - exit_line_length);
                     let ep = ExitPoint {
                         x: x_pos,
                         y: origin_y + height - exit_line_thickness,
@@ -143,7 +143,7 @@ impl AreaState {
                 }
                 _ => {
                     // Left edge (3)
-                    let y_pos = origin_y + rng.gen_range(0.0..height - exit_line_length);
+                    let y_pos = origin_y + rng.random_range(0.0..height - exit_line_length);
                     let ep = ExitPoint {
                         x: origin_x,
                         y: y_pos,
@@ -166,7 +166,7 @@ impl AreaState {
             if floor > -10 {
                 // Arbitrary bottom floor limit
                 let descent_floor = floor - 1;
-                let y_pos = origin_y + rng.gen_range(0.0..height - exit_line_length);
+                let y_pos = origin_y + rng.random_range(0.0..height - exit_line_length);
                 let rect = ExitPoint {
                     x: origin_x + width - exit_line_thickness,
                     y: y_pos,
@@ -182,7 +182,7 @@ impl AreaState {
             // Add an ascent point (top edge) if not on the entry floor (floor 1)
             if floor < 1 {
                 let ascent_floor = floor + 1;
-                let x_pos = origin_x + rng.gen_range(0.0..width - exit_line_length);
+                let x_pos = origin_x + rng.random_range(0.0..width - exit_line_length);
                 let rect = ExitPoint {
                     x: x_pos,
                     y: origin_y,

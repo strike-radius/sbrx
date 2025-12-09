@@ -176,7 +176,7 @@ impl GroundAssetManager {
         }
 
         let mut rng = rand::rng();
-        let mut choice = rng.gen_range(0..self.total_spawn_weight);
+        let mut choice = rng.random_range(0..self.total_spawn_weight);
 
         for asset in &self.assets {
             if choice < asset.spawn_weight {

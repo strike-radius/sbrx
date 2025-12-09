@@ -451,7 +451,7 @@ impl CpuEntity {
             // This can happen if RazorFiend flicker strikes to the player's location.
             // Apply knockback in a random direction to prevent immunity.
             let mut rng = rand::rng();
-            let random_angle = rng.gen_range(0.0..std::f64::consts::TAU);
+            let random_angle = rng.random_range(0.0..std::f64::consts::TAU);
             let normalized_dx = random_angle.cos();
             let normalized_dy = random_angle.sin();
 

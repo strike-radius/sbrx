@@ -60,11 +60,11 @@ impl MapSystem {
         let mut field_rng = rand::rngs::StdRng::seed_from_u64(seed);
 
         // Ground: limit to 25%(darker) to 75%(lighter) on the grayscale scaling
-        let ground_val = field_rng.gen_range(0.25..=0.75);
+        let ground_val = field_rng.random_range(0.25..=0.75);
         let ground_color = [ground_val, ground_val, ground_val, 1.0];
         /*
                 // Sky: limit to 0%(black) to 90%(light cap) on the grayscale scaling
-                let sky_val = field_rng.gen_range(0.0..=0.90);
+                let sky_val = field_rng.random_range(0.0..=0.90);
                 let sky_color = [sky_val, sky_val, sky_val, 1.0];
         */
 

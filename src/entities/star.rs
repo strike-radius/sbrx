@@ -22,10 +22,10 @@ impl Star {
         Star {
             x,
             y,
-            brightness: rng.gen_range(0.4..1.0),
-            twinkle_speed: rng.gen_range(2.5..39.0),
-            twinkle_offset: rng.gen_range(0.0..std::f32::consts::PI * 2.0),
-            size: rng.gen_range(1.0..2.5),
+            brightness: rng.random_range(0.4..1.0),
+            twinkle_speed: rng.random_range(2.5..39.0),
+            twinkle_offset: rng.random_range(0.0..std::f32::consts::PI * 2.0),
+            size: rng.random_range(1.0..2.5),
         }
     }
 

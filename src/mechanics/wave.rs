@@ -93,8 +93,8 @@ impl WaveManager {
         let total_weight: u32 = table.iter().map(|(_, w)| w).sum();
         if total_weight == 0 { return crate::entities::cpu_entity::CpuVariant::NightReaver; } // Safe fallback
         
-        let mut rng = rand::thread_rng();
-        let mut choice = rng.gen_range(0..total_weight);
+        let mut rng = rand::rng();
+        let mut choice = rng.random_range(0..total_weight);
         
         for (variant, weight) in table {
             if choice < *weight {
