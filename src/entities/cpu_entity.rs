@@ -210,7 +210,7 @@ impl CpuEntity {
     }
 
     // Constructor for BloodIdol
-    pub fn new_blood_idol(line_y: f64, base_mantis_hp: f64, base_mantis_speed: f64) -> Self {
+    pub fn new_blood_idol(line_y: f64, _base_mantis_hp: f64, _base_mantis_speed: f64) -> Self {
         Self {
             x: safe_gen_range(50.0, 1870.0, "CpuEntity x (BloodIdol)"),
             y: safe_gen_range(line_y, line_y + 400.0, "CpuEntity y (BloodIdol)"),
@@ -350,7 +350,7 @@ impl CpuEntity {
     }
 
     /// Constructor for VoidTempest (identical to BloodIdol stats)
-    pub fn new_void_tempest(line_y: f64, base_mantis_hp: f64, base_mantis_speed: f64) -> Self {
+    pub fn new_void_tempest(line_y: f64, _base_mantis_hp: f64, _base_mantis_speed: f64) -> Self {
         let mut skill_manager = SkillManager::new(); // add skill 1/3
         skill_manager.add_skill(SkillType::FlickerStrike); // add skill 2/3
         Self {
@@ -465,7 +465,7 @@ impl CpuEntity {
         racer_x: f64,
         racer_y: f64,
         dt: f64,
-        line_y: f64,
+        _line_y: f64,
         audio_manager: &AudioManager,
     ) -> CpuUpdateResult {
         if !CPU_ENABLED {
@@ -587,10 +587,7 @@ impl CpuEntity {
                 self.skill_manager.trigger_skill(SkillType::FlickerStrike);
 
                 let damage = self.damage_value * FLICKER_STRIKE_DAMAGE_MULTIPLIER;
-				
-                audio_manager.play_sound_effect("death").unwrap_or_else(|e| {
-                    //println!("[Audio] Failed to play flicker strike sound: {}", e)
-                });				
+						
 
                 return CpuUpdateResult {
                     damage_to_player: Some(damage),
@@ -735,7 +732,6 @@ impl CpuEntity {
         // Draw bleed indicator
         if self.bleed_effect.is_some() {
             let bleed_indicator_y = hp_bar_world_y - 10.0;
-            let bleed_text = "BLEED";
             // Simple visual indicator (you can replace with text rendering if glyphs are available)
             rectangle(
                 [1.0, 0.0, 0.0, 0.8], // Red with transparency

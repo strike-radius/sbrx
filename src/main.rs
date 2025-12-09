@@ -101,7 +101,7 @@ use config::gameplay::{
 };
 use config::movement::{
     BIKE_SPEED, MOVEMENT_BUFFER_DURATION, ON_FOOT_HOLD_DURATION,
-    RUSH_DISTANCE, RUSH_DURATION,
+    RUSH_DURATION,
 };
 use config::resolution::{HEIGHT, HORIZON_LINE, WIDTH};
 use config::{
@@ -582,9 +582,8 @@ fn main() {
     let line_y = HORIZON_LINE;
     let movement_buffer_duration = MOVEMENT_BUFFER_DURATION;
     let rush_duration = RUSH_DURATION;
-    let rush_distance = RUSH_DISTANCE;
+
     let bike_interaction_distance = BIKE_INTERACTION_DISTANCE;
-    let fighter_jet_interaction_distance_var = FIGHTER_JET_INTERACTION_DISTANCE;
     let max_stars = if PERFORMANCE_MODE { 25 } else { 25 };
     let sky_width = 7250.0;
     let mut game_time = 0.0;
@@ -1128,7 +1127,7 @@ fn main() {
     let mut base_fighter_stats_map: HashMap<FighterType, combat::stats::Stats> =
         fighter_stats_map.clone();
     let mut buffed_fighters: HashSet<FighterType> = HashSet::new();
-    let mut field_trait_manager = FieldTraitManager::new();
+    let field_trait_manager = FieldTraitManager::new();
 
     let mut camera = Camera::new();
     camera.x = fighter.x;
@@ -1512,7 +1511,7 @@ fn main() {
                     if matches!(game_state, GameState::Playing) 
                         && fighter.fighter_type == FighterType::Hunter
                     {
-                        audio_manager.play_sound_effect("boost").unwrap_or_else(|e| {
+                        audio_manager.play_sound_effect("boost").unwrap_or_else(|_e| {
                             //println!("[Audio] Failed to play boost sound for Hunter: {}", e);
                         });
                     }					
@@ -1522,7 +1521,7 @@ fn main() {
                         && fighter.fighter_type == FighterType::Racer
                         && fighter.boost
                     {
-                        audio_manager.play_sound_effect("boost").unwrap_or_else(|e| {
+                        audio_manager.play_sound_effect("boost").unwrap_or_else(|_e| {
                             //println!("[Audio] Failed to play boost sound: {}", e);
                         });
                     }
@@ -2033,7 +2032,6 @@ fn main() {
                     if !is_in_bunker && wave_manager.is_active() {
                         wave_manager.reset();
                     }
-                    let mut t_rex_was_defeated_this_frame = false;
 
                     if wave_manager.is_active() && !is_paused {
                         let was_active = wave_manager.is_active();
@@ -2680,14 +2678,14 @@ fn main() {
                     } else {
                         show_racetrack_soldier_prompt = false;
                     }
-
+/*
                     // Draw interaction prompt over soldier if conditions are met
                     if racetrack_active && !racetrack_soldier_dialogue_triggered {
-                        let indicator_text = "[!]";
-                        let font_size = 24;
+                        let _indicator_text = "[!]";
+                        let _font_size = 24;
                         // ... code to draw the [!] ...
                     }
-
+*/
                     show_fort_silo_survivor_prompt = false;
                     if !is_paused
                         && sbrx_map_system.current_field_id == SbrxFieldId(-25, 25)
@@ -2982,9 +2980,6 @@ fn main() {
                                 get_allowed_fields(soldier_has_joined, hunter_has_joined);
                             let has_field_restrictions = !allowed_fields.is_empty();
 
-                            let is_fly_to_silo_active = task_system
-                                .has_task("FLY TO FORT SILO [X-25 Y25]")
-                                && !task_system.is_task_complete("FLY TO FORT SILO [X-25 Y25]");
                             let is_saucer_defeated = task_system.flying_saucer_defeated;
                             // Block ground access to Fort Silo until flying saucer is defeated
                             let fort_silo_ground_restriction = !is_saucer_defeated
@@ -3386,7 +3381,7 @@ fn main() {
                                         );
                                         let mut assets_for_field = Vec::new();
                                         let num_assets_to_spawn =
-                                            rand::rng().gen_range(30..=60);
+                                            rand::rng().random_range(30..=60);
 
                                         for _ in 0..num_assets_to_spawn {
                                             if let Some(asset_to_spawn) =
@@ -3946,7 +3941,7 @@ fn main() {
                             }
                             score_tier_to_check += 5;
                         }
-                        let mut next_blood_idol_spawn_score = 0;
+                        let next_blood_idol_spawn_score = 0;
 						/*
                         if current_score >= 0 {
                             if next_blood_idol_spawn_score == 0 {
@@ -4631,7 +4626,7 @@ fn main() {
                             {
                                 let texture_index = *field_ground_texture_indices
                                     .entry(sbrx_map_system.current_field_id)
-                                    .or_insert_with(|| rand::rng().gen_range(0..4));
+                                    .or_insert_with(|| rand::rng().random_range(0..4));
                                 let ground_texture = &ground_textures[texture_index];
 
                                 let tex_width = ground_texture.get_width() as f64;
@@ -5211,10 +5206,6 @@ fn main() {
                             }
                         }						
 
-                        // Check if a special strike visual is active to hide the default crater
-                        let is_special_strike_active =
-                            frontal_strike_timer > 0.0 && frontal_strike_is_special;
-
                         // CRATER STRIKE RADIUS: deactivated
                         /*
                                                 if !is_special_strike_active {
@@ -5262,7 +5253,7 @@ fn main() {
                                 ))
                         {
                             // Don't render bike in area instances
-                            let should_render_bike = if let Some(ref area_state) = current_area {
+                            let should_render_bike = if let Some(ref _area_state) = current_area {
                                 false // Never render bike in any area
                             } else {
                                 true // Render normally in open world
@@ -5362,7 +5353,7 @@ fn main() {
                                 // draw_health_bar puts bar at fighter.y - 80.0
                                 // We'll put this slightly above that
                                 let ind_w = indicator_tex.get_width() as f64;
-                                let ind_h = indicator_tex.get_height() as f64;
+                                let _ind_h = indicator_tex.get_height() as f64;
                                 let ind_x = fighter.x - ind_w / 2.0;
                                 let ind_y = fighter.y - 125.0; // Above HP bar
                                 
@@ -5605,7 +5596,7 @@ fn main() {
                                             .ok();
                                     }
 
-                                    let (max_hp, current_hp) = match ft {
+                                    let (_max_hp, current_hp) = match ft {
                                         FighterType::Racer => (
                                             RACER_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
@@ -5620,11 +5611,6 @@ fn main() {
                                         ),
                                     };
 
-                                    let hp_percent = if max_hp > 0.0 {
-                                        (current_hp / max_hp) * 100.0
-                                    } else {
-                                        0.0
-                                    };
                                     let hp_text = format!("{:.0}", current_hp.max(0.0));
 
                                     let text_y = start_y + icon_height + font_size as f64;
@@ -5801,8 +5787,8 @@ fn main() {
                                     (0.7, 5.0, [0.8, 0.8, 1.0, 0.7], 1.0),
                                     (1.2, 8.0, [0.7, 0.7, 0.9, 0.6], 1.5),
                                 ] {
-                                    let ox = ers.gen_range(-ofr..ofr);
-                                    let oy = ers.gen_range(-ofr..ofr);
+                                    let ox = ers.random_range(-ofr..ofr);
+                                    let oy = ers.random_range(-ofr..ofr);
                                     let ndx = ldxs / bls;
                                     let ndy = ldys / bls;
                                     let efx = sx + ndx * bls * lm + ox;
@@ -5812,7 +5798,7 @@ fn main() {
                             }
                         }
                         for text in &damage_texts {
-                            let mut final_color = text.color;
+                            let final_color = text.color;
                             let text_width = glyphs.width(16, &text.text).unwrap_or(0.0);
                             let text_x = text.x - text_width / 2.0;
                             text::Text::new_color(final_color, 16)
@@ -5938,12 +5924,6 @@ fn main() {
                         }
 
                         if show_fighter_jet_prompt {
-                            let firmament_target_text = format!(
-                                "board FIGHTERJET to FIRMAMENT_field.x[{}]y[{}]z[{}]",
-                                next_firmament_entry_field_id.0,
-                                next_firmament_entry_field_id.1,
-                                next_firmament_entry_field_id.2
-                            );
                             let prompt_text1 = "[E] board FIGHTERJET";
                             let prompt_font_size = 20;
                             let prompt_color = [1.0, 1.0, 0.0, 1.0];
@@ -6306,7 +6286,7 @@ fn main() {
                                         current_racer_texture = current_idle_texture;
                                     }
                                 }
-                                let (mut wmx, mut wmy) = screen_to_world(&camera, mouse_x, mouse_y);
+                                let (wmx, wmy) = screen_to_world(&camera, mouse_x, mouse_y);
                                 let dx = wmx - fixed_crater.x;
                                 let dy = wmy - fixed_crater.y;
                                 let hr = fixed_crater.radius;
@@ -7294,7 +7274,6 @@ fn main() {
                                 {
                                     fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                                     // Store previous combat mode before switching
-                                    let previous_mode = fighter.combat_mode;
                                     let new_radius =
                                         fighter.switch_fighter_type(FighterType::Racer);
                                     fixed_crater.radius = new_radius;
@@ -7368,7 +7347,6 @@ fn main() {
                                 {
                                     fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                                     // Store previous combat mode before switching
-                                    let previous_mode = fighter.combat_mode;
                                     let new_radius =
                                         fighter.switch_fighter_type(FighterType::Soldier);
                                     fixed_crater.radius = new_radius;
@@ -7947,13 +7925,6 @@ fn main() {
                                                 is_peaceful_mode,
                                             );
 
-                                            // Determine spawn location based on ascent/descent
-                                            let (width, height, origin_x, origin_y) = (
-                                                BUNKER_WIDTH,
-                                                BUNKER_HEIGHT,
-                                                BUNKER_ORIGIN_X,
-                                                BUNKER_ORIGIN_Y,
-                                            );
                                             if target_floor < current_floor {
                                                 // Descending
                                                 // Find the ascent point in the new (lower) level's transitions
@@ -8859,8 +8830,7 @@ fn main() {
                                     strike.trigger(strike_x, strike_y);
 
                                     if !is_paused && CPU_ENABLED {
-                                        let mut cpus_to_remove: Vec<usize> = Vec::new();
-                                        for (cpu_index, cpu) in cpu_entities.iter_mut().enumerate()
+                                        for (_cpu_index, cpu) in cpu_entities.iter_mut().enumerate()
                                         {
                                             let sdx = strike_x - cpu.x;
                                             let sdy = strike_y - cpu.y;
@@ -9217,7 +9187,7 @@ fn main() {
                                             .ok();
                                     }
 
-                                    let (max_hp, current_hp) = match ft {
+                                    let (_max_hp, current_hp) = match ft {
                                         FighterType::Racer => (
                                             RACER_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
@@ -9232,11 +9202,7 @@ fn main() {
                                         ),
                                     };
 
-                                    let hp_percent = if max_hp > 0.0 {
-                                        (current_hp / max_hp) * 100.0
-                                    } else {
-                                        0.0
-                                    };
+
                                     let hp_text = format!("{:.0}", current_hp.max(0.0));
 
                                     let text_y = start_y + icon_height + font_size as f64;

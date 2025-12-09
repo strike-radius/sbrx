@@ -6,14 +6,14 @@ use crate::map_system::FieldId as SbrxFieldId;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StatAttribute {
     Level, // Interpreted as a boost to core stats (ATK, DEF, SPD)
-    Attack,
-    Defense,
-    Speed,
+    _Attack,
+    _Defense,
+    _Speed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TraitTarget {
-    Player, // The currently controlled fighter
+    _Player, // The currently controlled fighter
     Fighter(FighterType),
 }
 

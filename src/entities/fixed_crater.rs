@@ -8,7 +8,7 @@ pub struct FixedCrater {
 }
 
 impl FixedCrater {
-    pub fn new(x: f64, y: f64, radius: f64) -> Self {
+    pub fn _new(x: f64, y: f64, radius: f64) -> Self {
         FixedCrater { x, y, radius }
     }
 }

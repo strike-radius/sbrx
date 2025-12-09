@@ -90,7 +90,7 @@ impl AudioManager {
         })?;
 
         // Test decode with try_from
-        let decoder = Decoder::try_from(file).map_err(|e| {
+        let _decoder = Decoder::try_from(file).map_err(|e| {
             format!(
                 "Failed to decode sound effect file {}: {}",
                 path.display(),

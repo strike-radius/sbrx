@@ -10,7 +10,7 @@ use crate::DamageText;
 use piston_window::*; // For strike collision check
 
 // Base values for Kinetic Strike
-pub const KINETIC_STRIKE_BASE_DAMAGE: f64 = 25.0;
+//pub const KINETIC_STRIKE_BASE_DAMAGE: f64 = 25.0;
 pub const KINETIC_STRIKE_BASE_KNOCKBACK: f64 = 1000.0;
 
 pub const KINETIC_STRIKE_DAMAGE_IMMUNITY_DURATION: f64 = 0.25;
@@ -356,9 +356,9 @@ impl BlockSystem {
         cpu_entities: &mut Vec<CpuEntity>,
         strike_visual: &mut Strike,
         audio_manager: &AudioManager,
-        line_y: f64, // For CPU respawn
+        _line_y: f64, // For CPU respawn
         damage_texts: &mut Vec<DamageText>,
-        task_system: &mut crate::task::TaskSystem,
+        _task_system: &mut crate::task::TaskSystem,
         combo_system: &mut crate::combat::combo::ComboSystem,
 		is_paused: bool,
     ) {
@@ -456,11 +456,6 @@ impl BlockSystem {
         );
     }
 
-    // Check if the player is immune to damage due to a recent kinetic strike
-    pub fn is_immune_to_damage(&self) -> bool {
-        self.kinetic_strike_damage_immunity_timer > 0.0
-    }
-
     pub fn get_damage_multiplier(&self) -> f64 {
         // For incoming damage to player
         if self.block_broken && self.vulnerability_timer > 0.0 {
@@ -514,11 +509,11 @@ impl BlockSystem {
 
 fn draw_status_text_placeholder(
     text: &str,
-    color: [f32; 4],
-    x: f64,
-    y: f64,
-    context: Context,
-    g: &mut G2d,
+    _color: [f32; 4],
+    _x: f64,
+    _y: f64,
+    _context: Context,
+    _g: &mut G2d,
 ) {
     let _ = text;
 }

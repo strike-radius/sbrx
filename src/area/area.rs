@@ -1,6 +1,5 @@
 // src/area/area.rs
 
-use piston_window::*;
 use rand::Rng;
 
 // Define the area's properties as constants for easy access and modification.

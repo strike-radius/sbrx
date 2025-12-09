@@ -1,5 +1,5 @@
 // entities/pyramid.rs
-
+/*
 use crate::utils::math::safe_gen_range;
 use piston_window::*;
 
@@ -242,4 +242,6 @@ pub fn generate_border_pyramids(
             height: pyramid_height,
         });
     }
+*/
+
 */

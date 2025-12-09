@@ -4,13 +4,11 @@ use crate::audio::AudioManager;
 use crate::entities::cpu_entity::CpuEntity;
 use crate::entities::fighter::Fighter;
 use crate::entities::fixed_crater::FixedCrater;
-use crate::entities::sbrx_bike::SbrxBike;
 use crate::entities::shoot::Shoot;
 use crate::entities::strike::Strike;
 use crate::game_state::{FighterType, MovementDirection};
 use crate::graphics::camera::screen_to_world;
 use crate::graphics::camera::Camera;
-use crate::graphics::fighter_textures::FighterTextures;
 use crate::utils::collision::check_line_collision;
 use piston_window::*;
 
@@ -227,32 +225,15 @@ pub fn handle_key_press<'a>(
     mouse_y: f64,
     fixed_crater: &mut FixedCrater,
     strike: &mut Strike,
-    shoot: &mut Shoot,
-    sbrx_bike: &mut SbrxBike,
     cpu_entities: &mut Vec<CpuEntity>,
     line_y: f64,
     current_racer_texture: &mut &'a G2dTexture,
-    current_idle_texture: &'a G2dTexture,
-    current_fwd_texture: &'a G2dTexture,
-    current_backpedal_texture: &'a G2dTexture,
-    current_block_texture: &'a G2dTexture,
-    current_ranged_texture: &'a G2dTexture,
     current_rush_texture: &'a G2dTexture,
-    current_strike_textures: &'a Vec<G2dTexture>,
-    racer_textures: &FighterTextures,
-    soldier_textures: &FighterTextures,
-    key_w_pressed: &mut bool,
-    key_s_pressed: &mut bool,
-    key_a_pressed: &mut bool,
-    key_d_pressed: &mut bool,
     block_active: &mut bool,
     rmb_held: &mut bool,
     movement_active: &mut bool,
-    movement_timer: &mut f64,
     backpedal_active: &mut bool,
-    backpedal_timer: &mut f64,
     current_movement_direction: &mut MovementDirection,
-    movement_buffer_timer: f64,
     rush_active: &mut bool,
     rush_timer: &mut f64,
     rush_cooldown: &mut f64,

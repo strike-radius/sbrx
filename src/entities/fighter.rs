@@ -41,7 +41,6 @@ pub struct Fighter {
     pub is_reloading: bool,
     pub reload_timer: f64,
 	pub boost: bool,
-    pub racer_prefer_sprint: bool, // rename to boost
 	pub bike_boost_toggle_cooldown: f64,
 	pub boost_indicator_timer: f64,
 }
@@ -97,7 +96,6 @@ impl Fighter {
             is_reloading: false,
             reload_timer: 0.0,
 			boost: true, // false to swap starting [SHIFT] key
-            racer_prefer_sprint: true, // rename to boost
 			bike_boost_toggle_cooldown: 0.0,
 			boost_indicator_timer: 0.0,
         }
@@ -172,7 +170,6 @@ impl Fighter {
         let def = (self.stats.defense.hp / stats::HP_PER_DEFENSE_POINT).round() as u32;
         let atk = (self.stats.attack.melee_damage / stats::DAMAGE_PER_ATTACK_POINT).round() as u32;
         let spd = (self.stats.speed.run_speed / stats::SPEED_PER_SPEED_POINT).round() as u32;
-        let level = self.levels.get(&self.fighter_type).unwrap_or(&1);
         let base_level = *self.levels.get(&self.fighter_type).unwrap_or(&1) as i32;
         let effective_level = (base_level + level_modifier).max(1); // Ensure level doesn't go below 1
         let fighter_type_text = match self.fighter_type {
@@ -269,7 +266,6 @@ impl Fighter {
         let base_y = 1075.0;
 
         // Get texture dimensions
-        let texture_width = inputs_texture.get_width() as f64;
         let texture_height = inputs_texture.get_height() as f64;
 
         // Draw the inputs image at fixed position - using original_context for fixed screen position
@@ -351,7 +347,7 @@ impl Fighter {
         }
     }
 
-    pub fn draw_score(&self, transformed_context: Context, original_context: Context, g: &mut G2d) {
+    pub fn draw_score(&self, _transformed_context: Context, original_context: Context, g: &mut G2d) {
         // Create seven segment display with appropriate dimensions
         let display = SevenSegmentDisplay::new(20.0, 30.0, 7.5); // 50% of previous size (was 40.0, 60.0, 15.0)
 
@@ -434,7 +430,7 @@ impl Fighter {
             g,
         );
     }
-
+/*
     pub fn apply_knockback(&mut self, source_x: f64, source_y: f64, force: f64) {
         // Calculate direction from source to fighter
         let dx = self.x - source_x;
@@ -450,8 +446,8 @@ impl Fighter {
             self.knockback_duration = 0.1; // Knockback lasts 0.1 seconds
         }
     }
-
-    pub fn update(&mut self, dt: f64, line_y: f64) {
+*/
+    pub fn update(&mut self, dt: f64, _line_y: f64) {
         if self.knockback_duration > 0.0 {
             // Apply knockback movement
             self.x += self.knockback_velocity.x * dt;
@@ -535,7 +531,7 @@ impl Fighter {
         );
 
         // Draw HP text
-        let hp_text = format!("{}/{}", self.current_hp as i32, self.max_hp as i32);
+        let _hp_text = format!("{}/{}", self.current_hp as i32, self.max_hp as i32);
         // Add text drawing here if you want to display the numbers
     }
 
