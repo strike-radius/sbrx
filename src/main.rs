@@ -17,11 +17,11 @@
 
 //File: src/main.rs
 
-#![allow(deprecated)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
-#![allow(dead_code)]
+//#![allow(deprecated)]
+//#![allow(unused_imports)]
+//#![allow(unused_variables)]
+//#![allow(unused_mut)]
+//#![allow(dead_code)]
 
 mod audio;
 mod combat;
@@ -57,7 +57,7 @@ use crate::combat::block::KINETIC_STRIKE_DAMAGE_IMMUNITY_DURATION;
 
 use crate::piston_window::MouseCursorEvent;
 use crate::combat::block::BlockSystem;
-use crate::combat::combo::{ComboSystem, StrikeResult};
+use crate::combat::combo::ComboSystem;
 use crate::combat::field_traits::{FieldTraitManager, StatAttribute, TraitTarget};
 use crate::combat::stats;
 use piston_window::Image;
@@ -68,9 +68,8 @@ use graphics::camera::{screen_to_world, Camera};
 use graphics::crater::draw_crater;
 use graphics::fighter_textures::{
     is_high_priority_animation_active, load_fighter_textures, update_current_textures,
-    FighterTextures,
 };
-use graphics::seven_segment::SevenSegmentDisplay;
+
 use crate::entities::cpu_entity::VisualEffect;
 use crate::game_state::{
     CombatMode, DeathType, FighterType, GameState, MovementDirection, RacerState,
@@ -82,7 +81,8 @@ use entities::fixed_crater::FixedCrater;
 use entities::fuel_pump::FuelPump;
 use entities::moving_sphere::MovingSphere;
 use entities::pulse_orb::PulseOrb;
-use entities::pyramid::{generate_border_pyramids, Pyramid};
+//use entities::pyramid::{generate_border_pyramids, Pyramid};
+//use utils::animation_queue::AnimationQueue;
 use entities::raptor_nest::RaptorNest;
 use entities::sbrx_bike::SbrxBike;
 use entities::shoot::Shoot;
@@ -92,16 +92,15 @@ use entities::track::Track;
 use audio::AudioManager;
 use chatbox::{ChatBox, MessageType}; // Import the new ChatBox system
 use crate::map_system::{FieldId as SbrxFieldId, MapSystem as SbrxMapSystem};
-use utils::animation_queue::AnimationQueue;
 use utils::collision::check_line_collision;
 use utils::math::safe_gen_range;
 use utils::vec2d::Vec2d;
 use config::gameplay::{
-    BIKE_INTERACTION_DISTANCE, COLLISION_THRESHOLD, KINETIC_STRIKE_IMMUNITY_DURATION,
+    BIKE_INTERACTION_DISTANCE, COLLISION_THRESHOLD,
     RAPTOR_NEST_INTERACTION_DISTANCE, FIGHTER_JET_INTERACTION_DISTANCE,
 };
 use config::movement::{
-    BIKE_SPEED, MOVEMENT_BUFFER_DURATION, ON_FOOT_CONTINUOUS_SPEED, ON_FOOT_HOLD_DURATION,
+    BIKE_SPEED, MOVEMENT_BUFFER_DURATION, ON_FOOT_HOLD_DURATION,
     RUSH_DISTANCE, RUSH_DURATION,
 };
 use config::resolution::{HEIGHT, HORIZON_LINE, WIDTH};
@@ -111,21 +110,17 @@ use config::{
 };
 use config::{CPU_ENABLED, PERFORMANCE_MODE};
 use piston_window::{
-    clear, ellipse, image, line, polygon, rectangle, text, AdvancedWindow, Button, CharacterCache,
-    Context, Event, EventLoop, EventSettings, Events, Flip, G2d, G2dTexture, G2dTextureContext,
-    Glyphs, ImageSize, Input, Key, Motion, MouseButton, OpenGL, PistonWindow, PressEvent,
-    ReleaseEvent, RenderArgs, RenderEvent, Texture, TextureSettings, Transformed, UpdateArgs,
+    clear, ellipse, image, line, polygon, rectangle, text, AdvancedWindow, 
+	Button, CharacterCache, Flip, G2dTexture, G2dTextureContext,
+    ImageSize, Key, MouseButton, PistonWindow, PressEvent,
+    ReleaseEvent, RenderEvent, Texture, TextureSettings, Transformed,
     UpdateEvent, Window, WindowSettings,
 };
 use rand::Rng;
-use rand::SeedableRng;
 use rodio::Sink;
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::fs::File;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
-use std::process::exit;
 use crate::area::area::{AreaState, AREA_HEIGHT, AREA_ORIGIN_X, AREA_ORIGIN_Y, AREA_WIDTH};
 use crate::area::area::{AreaType, BUNKER_HEIGHT, BUNKER_ORIGIN_X, BUNKER_ORIGIN_Y, BUNKER_WIDTH};
 use crate::entities::ground_assets::GroundAssetManager;
@@ -248,7 +243,7 @@ struct Survivor {
 }
 
 fn spawn_particles(particles: &mut Vec<Particle>, pos_x: f64, pos_y: f64, count: usize) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let speed_range = (150.0, 250.0);
     let lifetime_range = (0.3, 0.5);
     let base_size = 10.0;
@@ -601,7 +596,7 @@ fn main() {
 
     // Helper function to spawn a random CPU entity for the arena mode
     fn spawn_random_cpu(line_y: f64, stage: u32) -> CpuEntity {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         // Determine the range of enemies to spawn based on the arena stage
         let max_variant = if stage >= 2 {
             10 // Stage 2+ includes all 10 variants
@@ -1518,7 +1513,7 @@ fn main() {
                         && fighter.fighter_type == FighterType::Hunter
                     {
                         audio_manager.play_sound_effect("boost").unwrap_or_else(|e| {
-                            println!("[Audio] Failed to play boost sound for Hunter: {}", e);
+                            //println!("[Audio] Failed to play boost sound for Hunter: {}", e);
                         });
                     }					
 					
@@ -1528,7 +1523,7 @@ fn main() {
                         && fighter.boost
                     {
                         audio_manager.play_sound_effect("boost").unwrap_or_else(|e| {
-                            println!("[Audio] Failed to play boost sound: {}", e);
+                            //println!("[Audio] Failed to play boost sound: {}", e);
                         });
                     }
                 }
@@ -1544,7 +1539,7 @@ fn main() {
                                     Ok(sink) => crickets_sound_sink = Some(sink),
                                     Err(e) => eprintln!("Failed to play crickets sound: {}", e),
                                 }
-                                println!("[Audio] Pause track: CRICKETS");
+                                //println!("[Audio] Pause track: CRICKETS");
                                 PauseTrackState::Crickets
                             }
                             PauseTrackState::Crickets => {
@@ -1554,14 +1549,14 @@ fn main() {
                                 if let Some(sink) = pause_sound_sink.take() {
                                     sink.stop();
                                 }
-                                println!("[Audio] Pause track: MUTED");
+                                //println!("[Audio] Pause track: MUTED");
                                 PauseTrackState::Muted
                             }
                             PauseTrackState::Muted => {
                                 if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("pause") {
                                     pause_sound_sink = Some(sink);
                                 }
-                                println!("[Audio] Pause track: PAUSE MUSIC");
+                                //println!("[Audio] Pause track: PAUSE MUSIC");
                                 PauseTrackState::PauseMusic
                             }
                         };
@@ -1576,7 +1571,7 @@ fn main() {
                                     Ok(sink) => crickets_sound_sink = Some(sink),
                                     Err(e) => eprintln!("Failed to play crickets sound: {}", e),
                                 }
-                                println!("[Audio] Ambient track: CRICKETS");
+                                //println!("[Audio] Ambient track: CRICKETS");
                                 AmbientTrackState::Crickets
                             }
                             AmbientTrackState::Crickets => {
@@ -1586,7 +1581,7 @@ fn main() {
                                 if let Some(sink) = current_bgm_sink.take() {
                                     sink.stop();
                                 }
-                                println!("[Audio] Ambient track: MUTED");
+                                //println!("[Audio] Ambient track: MUTED");
                                 AmbientTrackState::Muted
                             }
                             AmbientTrackState::Muted => {
@@ -1600,7 +1595,7 @@ fn main() {
                                         Err(e) => println!("Warning: Failed to start background music: {}", e),
                                     }
                                 }
-                                println!("[Audio] Ambient track: BACKGROUND");
+                                //println!("[Audio] Ambient track: BACKGROUND");
                                 AmbientTrackState::Background
                             }
                         };
@@ -1742,7 +1737,7 @@ fn main() {
                                     "RACING MODE IN DEVELOPMENT. INITIATING ENDLESS ARENA MODE.",
                                     MessageType::Warning,
                                 )]);
-                                println!("[ARENA MODE] Player entered demo end zone. Endless arena activated.");
+                                //println!("[ARENA MODE] Player entered demo end zone. Endless arena activated.");
                             }
                         }
 
@@ -1756,7 +1751,7 @@ fn main() {
                                     "ARENA: MORE POWERFUL FOES APPEAR!",
                                     MessageType::Warning,
                                 )]);
-                                println!("[ARENA MODE] Reached 10 seconds. Stage 2 activated.");
+                                //println!("[ARENA MODE] Reached 10 seconds. Stage 2 activated.");
                             }
                             if endless_arena_timer >= 20.0 && endless_arena_stage < 3 {
                                 endless_arena_stage = 3;
@@ -1764,7 +1759,7 @@ fn main() {
                                     "ARENA: FRENZY ACTIVATED!",
                                     MessageType::Warning,
                                 )]);
-                                println!("[ARENA MODE] Reached 20 seconds. Stage 3 activated. Buffing all enemies.");
+                                //println!("[ARENA MODE] Reached 20 seconds. Stage 3 activated. Buffing all enemies.");
                                 // Buff all existing enemies
                                 for cpu in &mut cpu_entities {
                                     cpu.speed *= 2.0;
@@ -2122,7 +2117,7 @@ fn main() {
                                     [1, 0, -1, -2].iter().cloned().collect();
                                 if required_floors.is_subset(&completed_bunker_waves) {
                                     bunker_waves_fully_completed = true;
-                                    println!("[WAVE SYSTEM] All bunker wave encounters completed for the first time. Lockdowns will now be disabled on future visits.");
+                                    //println!("[WAVE SYSTEM] All bunker wave encounters completed for the first time. Lockdowns will now be disabled on future visits.");
                                     chatbox.add_interaction(vec![(
                                         "BUNKER SECURED. ALL FLOORS ACCESSIBLE.",
                                         MessageType::Info,
@@ -2583,7 +2578,7 @@ fn main() {
                     } else {
                         // If we leave the field or the task is completed/removed, deactivate peaceful mode
                         if racetrack_active {
-                            println!("[FINALE] Racetrack peaceful mode deactivated.");
+                            //println!("[FINALE] Racetrack peaceful mode deactivated.");
                             racetrack_active = false;
                             // Deactivate arena mode only if player leaves the field
                             if endless_arena_mode_active
@@ -2592,14 +2587,14 @@ fn main() {
                                 endless_arena_mode_active = false;
                                 endless_arena_timer = 0.0;
                                 endless_arena_stage = 1;
-                                println!("[ARENA MODE] Player left the racetrack. Deactivating endless arena.");
+                                //println!("[ARENA MODE] Player left the racetrack. Deactivating endless arena.");
                             }
                         }
                     }
 
                     // Force switch to Racer if on the racetrack during the finale
                     if racetrack_active && fighter.fighter_type != FighterType::Racer {
-                        println!("[FINALE] Forcing switch to RACER for the race.");
+                        //println!("[FINALE] Forcing switch to RACER for the race.");
                         // This logic is adapted from the F1 key press handler
                         fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                         let new_radius = fighter.switch_fighter_type(FighterType::Racer);
@@ -3256,7 +3251,7 @@ fn main() {
                                         if !rocketbay_dialogue_triggered {
                                             // TASK 1: Force revive downed fighters for this dialogue
                                             if !downed_fighters.is_empty() {
-                                                println!("[DIALOGUE REVIVAL] Reviving all downed fighters for interaction.");
+                                                //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for interaction.");
                                                 let fighters_to_revive = downed_fighters.clone();
                                                 downed_fighters.clear(); // Clear the list
                                                 revival_kill_score = 0; // Reset counter
@@ -3391,7 +3386,7 @@ fn main() {
                                         );
                                         let mut assets_for_field = Vec::new();
                                         let num_assets_to_spawn =
-                                            rand::thread_rng().gen_range(30..=60);
+                                            rand::rng().gen_range(30..=60);
 
                                         for _ in 0..num_assets_to_spawn {
                                             if let Some(asset_to_spawn) =
@@ -4636,7 +4631,7 @@ fn main() {
                             {
                                 let texture_index = *field_ground_texture_indices
                                     .entry(sbrx_map_system.current_field_id)
-                                    .or_insert_with(|| rand::thread_rng().gen_range(0..4));
+                                    .or_insert_with(|| rand::rng().gen_range(0..4));
                                 let ground_texture = &ground_textures[texture_index];
 
                                 let tex_width = ground_texture.get_width() as f64;
@@ -5175,7 +5170,7 @@ fn main() {
                             let bls = (ldx * ldx + ldy * ldy).sqrt();
                             
                             if bls > 0.0 {
-                                let mut rng = rand::thread_rng();
+                                let mut rng = rand::rng();
                                 let ndx = ldx / bls;
                                 let ndy = ldy / bls;
 								
@@ -6658,7 +6653,7 @@ fn main() {
                                 // ADD YOUR SHIFT+1 LOGIC HERE
                             } else if bunker_entry_choice == BunkerEntryChoice::AwaitingInput {
                                 // Enter bunker without enemies/waves (peaceful entry).
-                                println!("[BUNKER] Entering peacefully.");
+                                //println!("[BUNKER] Entering peacefully.");
 
                                 // Reset the choice state
                                 bunker_entry_choice = BunkerEntryChoice::None;
@@ -6685,7 +6680,7 @@ fn main() {
                                 // ADD YOUR SHIFT+2 LOGIC HERE
                             } else if bunker_entry_choice == BunkerEntryChoice::AwaitingInput {
                                 // Enter bunker and restart waves.
-                                println!("[BUNKER] Restarting waves.");
+                                //println!("[BUNKER] Restarting waves.");
 
                                 // Reset the choice state
                                 bunker_entry_choice = BunkerEntryChoice::None;
@@ -6699,7 +6694,7 @@ fn main() {
                                 razor_fiend_defeated_flag = false;
                                 task_system.razor_fiend_defeated = 0;
                                 grand_commander_dialogue_triggered = false;
-                                println!("[BUNKER] Razor Fiend boss state has been reset.");
+                                //println!("[BUNKER] Razor Fiend boss state has been reset.");
 
                                 // --- BUNKER ENTRY LOGIC (WAVES RESTARTED) ---
                                 area_entrance_x = fighter.x;
@@ -7568,7 +7563,7 @@ fn main() {
 
                                     // Revive all downed fighters
                                     if !downed_fighters.is_empty() {
-                                        println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Grand Commander interaction.");
+                                        //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Grand Commander interaction.");
                                         let fighters_to_revive = downed_fighters.clone();
                                         downed_fighters.clear();
                                         revival_kill_score = 0;
@@ -7622,7 +7617,7 @@ fn main() {
 
                                     // --- REVIVAL LOGIC ---
                                     if !downed_fighters.is_empty() {
-                                        println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Fort Silo survivor interaction.");
+                                        //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Fort Silo survivor interaction.");
                                         let fighters_to_revive = downed_fighters.clone();
                                         downed_fighters.clear();
                                         revival_kill_score = 0;
@@ -7669,7 +7664,7 @@ fn main() {
 
                                     // TASK: GROUP REVIVAL DIALOGUE POINT
                                     if !downed_fighters.is_empty() {
-                                        println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Hunter interaction.");
+                                        //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Hunter interaction.");
                                         let fighters_to_revive = downed_fighters.clone();
                                         downed_fighters.clear(); // Clear the list
                                         revival_kill_score = 0; // Reset counter
@@ -9351,7 +9346,7 @@ fn main() {
 
                             // Task logic: Soldier and Hunter leave the group for the race (Handle inside closure now)
                             if soldier_has_joined || hunter_has_joined {
-                                println!("[FINALE] Landing on racetrack for finale. Soldier and Hunter will leave the group.");
+                                //println!("[FINALE] Landing on racetrack for finale. Soldier and Hunter will leave the group.");
                                 soldier_has_joined = false;
                                 hunter_has_joined = false;
  

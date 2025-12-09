@@ -6,7 +6,6 @@ use crate::entities::cpu_entity::CpuEntity;
 use crate::entities::fighter::Fighter;
 use crate::entities::strike::Strike; // For strike visual
 use crate::game_state::RacerState;
-use crate::graphics::seven_segment::SevenSegmentDisplay;
 use crate::DamageText;
 use piston_window::*; // For strike collision check
 
@@ -167,7 +166,7 @@ impl BlockSystem {
                     self.block_broken = false; // No longer "broken" in the sense of taking extra damage
                     self.block_fatigue = true; // Now in pure fatigue for recovery
                                                // fatigue_timer was set at the time of break/kinetic strike
-                    println!("[RECOVERY] Vulnerability ended. Transitioning to block fatigue. Fatigue remaining: {:.2}s", self.fatigue_timer);
+                    //println!("[RECOVERY] Vulnerability ended. Transitioning to block fatigue. Fatigue remaining: {:.2}s", self.fatigue_timer);
                 }
             }
         } else if self.block_fatigue {
@@ -178,7 +177,7 @@ impl BlockSystem {
                 self.block_count_float = self.max_block_count as f64;
                 self.regen_timer = 0.0;
                 block_count_changed = true;
-                println!("[RECOVERY] Block fatigue ended. Block points restored to max.");
+                //println!("[RECOVERY] Block fatigue ended. Block points restored to max.");
             }
         }
 
@@ -322,7 +321,7 @@ impl BlockSystem {
                 self.needs_dismount = true;
             }
             audio_manager.play_sound_effect("block_break").ok();
-            println!("[PROJECTILE_BLOCK_BROKEN] Block broken by projectile.");
+            //println!("[PROJECTILE_BLOCK_BROKEN] Block broken by projectile.");
             return false;
         } else {
             if block_point_was_consumed_this_event {

@@ -19,14 +19,14 @@ static LAST_PLAYED: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
 
 impl AudioManager {
     pub fn new() -> Result<Self, String> {
-        println!("[AudioManager] Initializing audio system...");
+        //println!("[AudioManager] Initializing audio system...");
         
         let stream = rodio::OutputStreamBuilder::open_default_stream()
             .map_err(|e| format!("Failed to open audio stream: {}", e))?;
 
         let mixer = stream.mixer().clone();
         
-        println!("[AudioManager] Audio system initialized successfully");
+        //println!("[AudioManager] Audio system initialized successfully");
 
         Ok(AudioManager {
             _stream: stream,
@@ -37,7 +37,7 @@ impl AudioManager {
 
     /// Play looping background music
     pub fn play_looping_sound(&self, path: &PathBuf) -> Result<Sink, String> {
-        println!("[AudioManager] play_looping_sound called for: {:?}", path);
+        //println!("[AudioManager] play_looping_sound called for: {:?}", path);
         
         // Check if file exists
         if !path.exists() {
@@ -47,16 +47,16 @@ impl AudioManager {
         let file = File::open(path)
             .map_err(|e| format!("Failed to open audio file {:?}: {}", path, e))?;
         
-        println!("[AudioManager] File opened successfully, attempting to decode...");
+        //println!("[AudioManager] File opened successfully, attempting to decode...");
 
         // Use try_from for rodio 0.21.1 - handles format detection properly
         let source = Decoder::try_from(file)
             .map_err(|e| format!("Failed to decode audio file {:?}: {}", path, e))?;
         
         // Log audio properties
-        println!("[AudioManager] Decoded successfully!");
-        println!("[AudioManager]   Sample rate: {:?}", source.sample_rate());
-        println!("[AudioManager]   Channels: {:?}", source.channels());
+        //println!("[AudioManager] Decoded successfully!");
+        //println!("[AudioManager]   Sample rate: {:?}", source.sample_rate());
+        //println!("[AudioManager]   Channels: {:?}", source.channels());
         
         let looped_source = source.repeat_infinite();
 
@@ -66,19 +66,19 @@ impl AudioManager {
         
         // Sink should already be playing, but let's be explicit
         if sink.is_paused() {
-            println!("[AudioManager] Sink was paused, unpausing...");
+            //println!("[AudioManager] Sink was paused, unpausing...");
             sink.play();
         }
         
-        println!("[AudioManager] Looping sound started, sink empty: {}, paused: {}", 
-                 sink.empty(), sink.is_paused());
+        //println!("[AudioManager] Looping sound started, sink empty: {}, paused: {}", 
+        //         sink.empty(), sink.is_paused());
 
         Ok(sink)
     }
 
     /// Load a sound effect and associate it with a name
     pub fn load_sound_effect(&self, name: &str, path: &PathBuf) -> Result<(), String> {
-        println!("[AudioManager] Loading sound effect '{}' from {:?}", name, path);
+        //println!("[AudioManager] Loading sound effect '{}' from {:?}", name, path);
         
         // Check if file exists first
         if !path.exists() {
@@ -98,8 +98,8 @@ impl AudioManager {
             )
         })?;
         
-        println!("[AudioManager] '{}' decoded OK - sample_rate: {}, channels: {}", 
-                 name, decoder.sample_rate(), decoder.channels());
+        //println!("[AudioManager] '{}' decoded OK - sample_rate: {}, channels: {}", 
+        //         name, decoder.sample_rate(), decoder.channels());
 
         // If we got here, the sound file is valid
         let mut effects = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
@@ -210,7 +210,7 @@ impl AudioManager {
 
     /// Play a sound effect in a loop by name and return the Sink for control.
 	pub fn play_sfx_loop(&self, name: &str) -> Result<Sink, String> {
-		println!("[AudioManager] play_sfx_loop called for: {}", name);
+		//println!("[AudioManager] play_sfx_loop called for: {}", name);
 		
 		// Clone path and release lock before I/O
 		let path = {
@@ -221,7 +221,7 @@ impl AudioManager {
 				.clone()
 		};
 
-		println!("[AudioManager] Found path: {:?}", path);
+		//println!("[AudioManager] Found path: {:?}", path);
 
 		let file = File::open(&path)
 			.map_err(|e| format!("Failed to open audio file for loop {}: {}", name, e))?;
@@ -229,8 +229,8 @@ impl AudioManager {
 		let source = Decoder::try_from(file)
 			.map_err(|e| format!("Failed to decode audio file for loop {}: {}", name, e))?;
 
-		println!("[AudioManager] '{}' decoded - sample_rate: {}, channels: {}", 
-				 name, source.sample_rate(), source.channels());
+		//println!("[AudioManager] '{}' decoded - sample_rate: {}, channels: {}", 
+		//		 name, source.sample_rate(), source.channels());
 
 		let looped_source = source.repeat_infinite();
 
@@ -238,13 +238,13 @@ impl AudioManager {
 		sink.set_volume(1.0);
 		sink.append(looped_source);
 		
-		println!("[AudioManager] '{}' sink created - empty: {}, paused: {}", 
-				 name, sink.empty(), sink.is_paused());
+		//println!("[AudioManager] '{}' sink created - empty: {}, paused: {}", 
+		//		 name, sink.empty(), sink.is_paused());
 
 		// DEBUG: Add this section
-		//println!("[AudioManager] Sleeping 100ms to test audio...");
+		////println!("[AudioManager] Sleeping 100ms to test audio...");
 		//std::thread::sleep(std::time::Duration::from_millis(100));
-		//println!("[AudioManager] After sleep - sink empty: {}, paused: {}", sink.empty(), sink.is_paused());
+		////println!("[AudioManager] After sleep - sink empty: {}, paused: {}", sink.empty(), sink.is_paused());
 
 		Ok(sink)
 	}

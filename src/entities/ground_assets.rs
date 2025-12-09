@@ -175,7 +175,7 @@ impl GroundAssetManager {
             return None;
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut choice = rng.gen_range(0..self.total_spawn_weight);
 
         for asset in &self.assets {

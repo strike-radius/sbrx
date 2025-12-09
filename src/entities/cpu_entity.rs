@@ -450,7 +450,7 @@ impl CpuEntity {
             // Edge case: source and entity are at the same position.
             // This can happen if RazorFiend flicker strikes to the player's location.
             // Apply knockback in a random direction to prevent immunity.
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let random_angle = rng.gen_range(0.0..std::f64::consts::TAU);
             let normalized_dx = random_angle.cos();
             let normalized_dy = random_angle.sin();
@@ -575,7 +575,7 @@ impl CpuEntity {
             let distance = (dx * dx + dy * dy).sqrt();
 
             if distance <= FLICKER_STRIKE_RADIUS {
-                println!("[SKILL] {:?} using Flicker Strike!", self.variant);
+                //println!("[SKILL] {:?} using Flicker Strike!", self.variant);
 
                 let from_x = self.x;
                 let from_y = self.y;
@@ -589,7 +589,7 @@ impl CpuEntity {
                 let damage = self.damage_value * FLICKER_STRIKE_DAMAGE_MULTIPLIER;
 				
                 audio_manager.play_sound_effect("death").unwrap_or_else(|e| {
-                    println!("[Audio] Failed to play flicker strike sound: {}", e)
+                    //println!("[Audio] Failed to play flicker strike sound: {}", e)
                 });				
 
                 return CpuUpdateResult {

@@ -42,7 +42,7 @@ impl FlyingSaucer {
         // Erratic movement
         self.direction_change_timer -= dt;
         if self.direction_change_timer <= 0.0 {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             self.vel_x = rng.gen_range(-300.0..300.0);
             self.vel_y = rng.gen_range(-200.0..200.0);
             self.direction_change_timer = rng.gen_range(0.5..2.0);

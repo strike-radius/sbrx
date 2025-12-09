@@ -31,7 +31,7 @@ pub mod movement {
     pub const RUSH_DURATION: f64 = 0.25;
     pub const RUSH_DISTANCE: f64 = 251.0;
     pub const ON_FOOT_HOLD_DURATION: f64 = 0.00;
-    pub const ON_FOOT_CONTINUOUS_SPEED: f64 = 150.0;
+    //pub const ON_FOOT_CONTINUOUS_SPEED: f64 = 150.0;
 }
 
 /// Gameplay constants
@@ -40,6 +40,6 @@ pub mod gameplay {
     pub const BIKE_INTERACTION_DISTANCE: f64 = 125.0;
     pub const FIGHTER_JET_INTERACTION_DISTANCE: f64 = 150.0;
     pub const RAPTOR_NEST_INTERACTION_DISTANCE: f64 = 150.0;
-    pub const KINETIC_STRIKE_IMMUNITY_DURATION: f64 = 0.25;
+    //pub const KINETIC_STRIKE_IMMUNITY_DURATION: f64 = 0.25;
     pub const WARNING_MESSAGE_DURATION: f64 = 3.0;
 }

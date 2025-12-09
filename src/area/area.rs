@@ -68,7 +68,7 @@ impl AreaState {
             ),
         };
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut spawn_night_reavers = false;
 
         let exit_line_thickness = 5.0;

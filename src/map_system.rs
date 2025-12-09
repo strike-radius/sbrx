@@ -51,7 +51,7 @@ impl MapSystem {
         }
 
         // Generate new colors for this field and store them
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Use field coordinates as seed for consistent colors per field
         // This ensures the same field always gets the same colors

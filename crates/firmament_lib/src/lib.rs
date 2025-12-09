@@ -154,7 +154,7 @@ fn normalize_vector(vec: &mut [f64; 2]) {
 
 fn debug_print(_msg: &str) {
     // To enable debug prints, uncomment the next line
-    println!("[DEBUG] {}", _msg);
+    //println!("[DEBUG] {}", _msg);
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -546,7 +546,7 @@ impl Game {
 			speed_lines: Vec::new(),
 //            stars: Vec::new(),
             window_size: [WINDOW_WIDTH, WINDOW_HEIGHT],
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             game_over: false,
             waiting_to_start: false,
             assets,

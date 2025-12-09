@@ -1,6 +1,5 @@
 // File: fighter_textures.rs
 
-use find_folder::Search;
 use piston_window::*;
 use std::path::PathBuf;
 

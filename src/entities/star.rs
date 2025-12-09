@@ -18,7 +18,7 @@ pub struct Star {
 
 impl Star {
     pub fn new(x: f64, y: f64) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         Star {
             x,
             y,

@@ -144,7 +144,7 @@ impl WaveManager {
             if self.state == WaveState::Spawning {
                 // Only transition once
                 self.state = WaveState::Frenzy;
-                println!("[WAVE SYSTEM] Survival time over. Transitioning to Frenzy state.");
+                //println!("[WAVE SYSTEM] Survival time over. Transitioning to Frenzy state.");
             }
         }
 
@@ -178,7 +178,7 @@ impl WaveManager {
             if self.current_wave < self.total_waves {
                 self.start_next_wave();
             } else {
-                println!("[WAVE SYSTEM] All waves cleared. Encounter finished.");
+                //println!("[WAVE SYSTEM] All waves cleared. Encounter finished.");
                 self.reset();
             }
         }
@@ -213,7 +213,7 @@ impl WaveManager {
         cpu.speed *= modifiers.speed_multiplier;
         // If spawning during enrage, apply the enrage buff immediately
         if self.state == WaveState::Frenzy {
-            println!("[WAVE SYSTEM] Spawning a FRENZIED enemy.");
+            //println!("[WAVE SYSTEM] Spawning a FRENZIED enemy.");
             cpu.damage_value *= 2.0;
             cpu.speed *= 2.0;
         }
