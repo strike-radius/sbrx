@@ -7,6 +7,7 @@ use std::collections::HashSet;
 // Represents a single ground asset with its properties.
 pub struct GroundAsset {
     pub name: &'static str,
+	#[allow(dead_code)] // Reserved for asset loading
     pub path: &'static str,
     // A weight for randomization. Higher means more common.
     pub spawn_weight: u32,

@@ -241,6 +241,7 @@ impl FogOfWar {
         }
     }
 
+	#[allow(dead_code)] // Debug utility - keep for development
     pub fn toggle_debug_mode(&mut self) {
         self.debug_mode = !self.debug_mode;
         println!(

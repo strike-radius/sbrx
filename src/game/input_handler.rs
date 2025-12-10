@@ -12,6 +12,7 @@ use crate::graphics::camera::Camera;
 use crate::utils::collision::check_line_collision;
 use piston_window::*;
 
+#[allow(dead_code)] // TODO: Wire up to event system
 pub fn handle_mouse_press<'a>(
     button: MouseButton,
     fighter: &mut Fighter,
@@ -110,6 +111,7 @@ pub fn handle_mouse_press<'a>(
 }
 
 // Function to handle space key press for rush action
+#[allow(dead_code)] // TODO: Wire up to event system
 pub fn handle_space_key<'a>(
     fighter: &mut Fighter,
     camera: &Camera,
@@ -217,6 +219,7 @@ pub fn handle_space_key<'a>(
 }
 
 // Main key press handler function
+#[allow(dead_code)] // TODO: Wire up to event system
 pub fn handle_key_press<'a>(
     key: Key,
     fighter: &mut Fighter,

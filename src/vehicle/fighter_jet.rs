@@ -11,6 +11,7 @@ pub struct FighterJet {
 
 impl FighterJet {
     /// Creates a new fighter_jet at a random location within the game boundaries.
+	#[allow(dead_code)] // TODO: Implement fighter jet spawning
     pub fn new() -> Self {
         FighterJet {
             x: safe_gen_range(MIN_X, MAX_X, "fighter_jet x"),

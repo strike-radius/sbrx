@@ -13,8 +13,10 @@ pub struct Shoot {
     pub y: f64,
     pub visible: bool,
     pub timer: f64,
+	#[allow(dead_code)] // TODO: Use for projectile rendering
     pub size: f64,
     pub line_visible: bool,
+	#[allow(dead_code)] // TODO: Use for hit marker display
     pub marker_size: f64,
     pub start_x: f64,
     pub start_y: f64,

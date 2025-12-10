@@ -13,6 +13,7 @@ pub enum SkillType {
 
 #[derive(Debug, Clone)]
 pub struct Skill {
+	#[allow(dead_code)] // TODO: Use in skill system implementation
     pub skill_type: SkillType,
     pub cooldown_timer: f64,
     pub cooldown_duration: f64,

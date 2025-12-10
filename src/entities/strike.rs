@@ -9,6 +9,7 @@ pub struct Strike {
     pub visible: bool,
     pub timer: f64,
     pub radius: f64,
+	#[allow(dead_code)] // TODO: Use for strike area calculation
     pub size: f64,
     pub angle: f64,
     pub length: f64,

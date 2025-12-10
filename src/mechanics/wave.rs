@@ -7,6 +7,7 @@ pub enum WaveState {
     Inactive,
     Spawning, // Survival timer is active, enemies are spawning based on target count
     Frenzy,  // Timer ran out, remaining enemies get buffed
+	#[allow(dead_code)] // TODO: Implement early wave clear bonus
     Clearing, // Player defeated all targets before timer ran out
 }
 

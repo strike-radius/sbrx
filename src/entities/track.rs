@@ -4,11 +4,14 @@
 pub struct Track {
     pub x: f64,
     pub y: f64,
+	#[allow(dead_code)]
     pub width: f64,
+	#[allow(dead_code)]
     pub height: f64,
 }
 
 impl Track {
+	#[allow(dead_code)] // Constructor reserved for future use
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Track {
             x,
