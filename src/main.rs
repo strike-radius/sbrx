@@ -9332,7 +9332,34 @@ fn main() {
                         {
                             println!("F5 (EJECT) pressed in FirmamentMode.");
 							audio_manager.play_sound_effect("death").ok();
-                            let current_fm_field = firmament_game.get_current_field_id();
+                            let current_fm_field = firmament_game.get_current_field_id();		
+							
+                            // Special Case: Ejecting on Racetrack during Finale Task acts as Landing (F1 behavior)
+                            if current_fm_field.0 == 0 && current_fm_field.1 == 0
+                                && task_system.has_task("LAND THE FIGHTERJET ON THE RACETRACK")
+                                && !task_system.is_task_complete("LAND THE FIGHTERJET ON THE RACETRACK")
+                            {
+                                println!("F5 pressed on Racetrack during Finale. Treating as Landing.");
+                                task_system.mark_racer_returned_to_racetrack();
+                                
+                                let target_sbrx_field_for_all = SbrxFieldId(0, 0);
+                                // Specific landing zone for the Racetrack (top-left corner)
+                                let (common_landing_x, common_landing_y) = (MIN_X + 50.0, MIN_Y + 50.0);
+                                
+                                println!("Player, Bike, and fighter_jet landing at ({:.2}, {:.2}) in SBRX field x[0],y[0]", common_landing_x, common_landing_y);
+                                handle_firmament_exit(
+                                    target_sbrx_field_for_all,
+                                    common_landing_x,
+                                    common_landing_y,
+                                    target_sbrx_field_for_all,
+                                    common_landing_x,
+                                    common_landing_y,
+                                    current_fm_field,
+                                );
+                                // Skip the standard eject logic below
+                                continue;
+                            }							
+							
                             // Check for ejecting at Fort Silo to complete task
                             if current_fm_field.0 == -25 && current_fm_field.1 == 25 {
                                 if task_system.has_task("LAND ON FORT SILO") {
