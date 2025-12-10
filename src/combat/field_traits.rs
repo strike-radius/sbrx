@@ -40,7 +40,7 @@ impl FieldTraitManager {
             attribute: StatAttribute::Level,
             modifier: 1,
             target: TraitTarget::Fighter(FighterType::Racer),
-            description: "+[1] LVL to RACER".to_string(),
+            description: "FIELD TRAIT:+[1] LVL to RACER".to_string(),
         });
 		
         // SOLDIER Traits
@@ -50,7 +50,7 @@ impl FieldTraitManager {
             attribute: StatAttribute::Level,
             modifier: 1,
             target: TraitTarget::Fighter(FighterType::Soldier),
-            description: "+[1] LVL to SOLDIER".to_string(),
+            description: "FIELD TRAIT:+[1] LVL to SOLDIER".to_string(),
         });
         // Fort Silo (x-25, y25)
         traits.push(FieldTrait {
@@ -58,7 +58,7 @@ impl FieldTraitManager {
             attribute: StatAttribute::Level,
             modifier: 1,
             target: TraitTarget::Fighter(FighterType::Soldier),
-            description: "+[1] LVL to SOLDIER".to_string(),
+            description: "FIELD TRAIT:+[1] LVL to SOLDIER".to_string(),
         });
         
         // Note: Bunker traits would ideally be handled dynamically based on area type,
@@ -71,7 +71,7 @@ impl FieldTraitManager {
             attribute: StatAttribute::Level,
             modifier: 1,
             target: TraitTarget::Fighter(FighterType::Hunter),
-            description: "+[1] LVL to HUNTER".to_string(),
+            description: "FIELD TRAIT:+[1] LVL to HUNTER".to_string(),
         };
 
         Self { traits, wilderness_trait }
