@@ -8430,11 +8430,22 @@ fn main() {
                     buffed_fighters.clear(); // Reset buff state on full party wipe
                     downed_fighters.clear();
 //                    revival_kill_score = 0;
+
                     fighter_hp_map.clear();
-                    fighter_hp_map.insert(FighterType::Racer, RACER_LVL1_STATS.defense.hp);
-                    fighter_hp_map.insert(FighterType::Soldier, SOLDIER_LVL1_STATS.defense.hp);
-                    fighter_hp_map.insert(FighterType::Hunter, HUNTER_LVL1_STATS.defense.hp);
+                    fighter_hp_map.insert(
+                        FighterType::Racer,
+                        base_fighter_stats_map[&FighterType::Racer].defense.hp,
+                    );
+                    fighter_hp_map.insert(
+                        FighterType::Soldier,
+                        base_fighter_stats_map[&FighterType::Soldier].defense.hp,
+                    );
+                    fighter_hp_map.insert(
+                        FighterType::Hunter,
+                        base_fighter_stats_map[&FighterType::Hunter].defense.hp,
+                    );
                     fighter.current_hp = fighter.max_hp;
+					
                     update_current_textures(
                         &fighter,
                         &racer_textures,
