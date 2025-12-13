@@ -1,11 +1,11 @@
 # Sabercross
 
-2D action RPG with a timed strike combo system
+2D action RPG prototype with a timed strike combo system
 
 ## Building from Source
 
 ### Prerequisites
-- Rust and Cargo (install from https://rustup.rs/)
+- Windows, Rust, and Cargo (install from https://rustup.rs/)
 
 ### Game Assets
 The game assets are not included in this repository due to size constraints.
@@ -13,10 +13,11 @@ The game assets are not included in this repository due to size constraints.
 **To get the assets:**
 1. Download `Sabercross.zip` from https://strike-radius.itch.io/sabercross
 2. Extract the `\assets` and `\sfx` folders
-3. Copy both folders into the root directory of this repository
+3. Copy both folders into the root directory of this repository to run
 
 ### Running the Game
-```bash
+```bash or command prompt
+/target_directory
 cargo run
 ```
 
