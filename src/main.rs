@@ -637,7 +637,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.1.95 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.1.97 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -681,7 +681,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.1.95 Window created.");
+    println!("sbrx0.1.97 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1340,7 +1340,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.1.95 Starting game loop...");
+    println!("sbrx0.1.97 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1648,7 +1648,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.1.95 Playing state.");
+                    println!("Transitioning to sbrx0.1.97 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1670,7 +1670,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 1 . 95";
+                        let version_text = "v0 . 1 . 97";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1952,11 +1952,12 @@ fn main() {
 								shift_held,
                             );
 							// Update to appropriate texture based on current state
-							if block_system.active || block_system.rmb_held {
-								// If blocking, update to the new block texture (foot version)
-								current_racer_texture = current_block_texture;
-							} else {
-								current_racer_texture = current_idle_texture;
+							if strike_animation_timer <= 0.0 {
+								if block_system.active || block_system.rmb_held {
+									current_racer_texture = current_block_texture;
+								} else {
+									current_racer_texture = current_idle_texture;
+								}
 							}
                         }
                     } else {
@@ -1983,7 +1984,9 @@ fn main() {
                                         &mut current_strike_textures,
 										shift_held,
                                     );
-                                    current_racer_texture = current_idle_texture;
+									if strike_animation_timer <= 0.0 {
+										current_racer_texture = current_idle_texture;
+									}
                                 }
                             } else {
                                 // Standard Ranged Mode logic
@@ -7580,7 +7583,8 @@ fn main() {
                                        ("-GRAND COMMANDER- \nSOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
                                        ("-SOLDIER- \nWHAT THE HELL IS GOING ON?", MessageType::Dialogue),
 									   ("-GRAND COMMANDER- \nWE SENT UP A SIGNAL TO FIND ALIEN LIFE. 
-									   \nNOW WE'RE BEING HUNTED DOWN BY THEM.", MessageType::Dialogue),
+									   \nNOW WE'RE BEING EXTERMINATED BY THEM.
+									   \nTHEY'RE EVEN CONTROLLING THE WILDLIFE.", MessageType::Dialogue),
 									   ("-HUNTER- \nWHAT CAN WE DO?", MessageType::Dialogue),
 									   ("-GRAND COMMANDER- \nLIBERATE THE SOUTHEAST MISSILE RANGE. 
 									   \nYOU'LL NEED TO FUEL UP THE FIGHTERJET 
@@ -7689,12 +7693,13 @@ fn main() {
                                     hunter_is_trapped_in_nest = false;
                                     task_system.populate_taskbar3();
                                     chatbox.add_interaction(vec![
-                                        ("-HUNTER- \nYOU HAVE MY THANKS. IF YOU SHOWED UP HALF A \nSECOND LATER, I'D BE IN PEICES.", MessageType::Dialogue),
-										("-SOLDIER- \nAT LEAST WE WERE ABLE TO SAVE SOMEONE..", MessageType::Dialogue),
+                                        ("-HUNTER- \nMANY THANKS. IF YOU SHOWED UP HALF A \nSECOND LATER, I'D BE IN PEICES.", MessageType::Dialogue),
+										("-SOLDIER- \nJOIN US.", MessageType::Dialogue),
+										("-HUNTER- \nIT'S THE LEAST I CAN DO. I'M A SHAPE SHIFTER \nSO DONT BE ALARMED.", MessageType::Dialogue),
                                         ("A T-REX ROARS OUTSIDE", MessageType::Notification),
-                                        ("-RACER- \nTHERE'S SOMETHING OUTSIDE.", MessageType::Dialogue),
-                                        ("-HUNTER- \nI WAS BEING CHASED BY A T-REX \nBEFORE I WAS AMBUSHED. WE NEED \nTO GET TO SAFETY.", MessageType::Dialogue),
-                                        ("-SOLDIER- \nMY BASECAMP ISN'T TOO FAR FROM HERE. \nLET'S TAKE THAT THING OUT AND \nTHEN HEAD OVER THERE.", MessageType::Dialogue),
+                                        ("-RACER- \nWHAT WAS THAT?", MessageType::Dialogue),
+                                        ("-HUNTER- \nI WAS BEING CHASED BY A T-REX BEFORE BEING \nAMBUSHED BY THESE RAPTORS.", MessageType::Dialogue),
+                                        ("-SOLDIER- \nMY BASECAMP ISN'T TOO FAR FROM HERE. LET'S \nTAKE THAT THING OUT AND THEN HEAD THAT WAY.", MessageType::Dialogue),
                                         ("HUNTER HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Notification),
 										("HUNTER HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Warning),
                                     ]);
@@ -8306,8 +8311,8 @@ fn main() {
                             DeathType::Raptor => "MAULED BY A RAPTOR",
                             DeathType::TRex => "DEVOURED BY A T-REX",
                             DeathType::FlyingSaucer => "VAPORIZED BY FLYING SAUCER",
-                            DeathType::LightReaver => "SLAIN BY A LIGHT REAVER",
-                            DeathType::NightReaver => "SLAIN BY A NIGHT REAVER",
+                            DeathType::LightReaver => "ABDUCTED BY A LIGHT REAVER",
+                            DeathType::NightReaver => "MUTILATED BY A NIGHT REAVER",
                             DeathType::RazorFiend => "SHREDDED BY A RAZOR FIEND",
                         };
 
@@ -8877,8 +8882,8 @@ fn main() {
                             DeathType::Raptor => "MAULED BY A RAPTOR",
                             DeathType::TRex => "DEVOURED BY A T-REX",
                             DeathType::FlyingSaucer => "VAPORIZED BY FLYING SAUCER",
-                            DeathType::LightReaver => "SLAIN BY A LIGHT REAVER",
-                            DeathType::NightReaver => "SLAIN BY A NIGHT REAVER",
+                            DeathType::LightReaver => "ABDUCTED BY A LIGHT REAVER",
+                            DeathType::NightReaver => "MUTILATED BY A NIGHT REAVER",
                             DeathType::RazorFiend => "SHREDDED BY A RAZOR FIEND",
                         };
 
@@ -9572,5 +9577,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.1.95 Game loop ended.");
+    println!("sbrx0.1.97 Game loop ended.");
 }

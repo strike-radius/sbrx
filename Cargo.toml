@@ -1,6 +1,6 @@
 [package]
 name = "sbrx" 
-version = "0.1.95"
+version = "0.1.97"
 edition = "2021"
 authors = ["IJB <strike_radius@protonmail.com>"]
 description = "2D ARPG"
