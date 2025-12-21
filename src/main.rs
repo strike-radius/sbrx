@@ -2804,7 +2804,10 @@ fn main() {
                             game_time,
                         );
                     }
-                    let is_crickets_field = sbrx_map_system.current_field_id == SbrxFieldId(-2, 5);
+					
+                    let is_crickets_field = sbrx_map_system.current_field_id == SbrxFieldId(-2, 5) 
+                                         || sbrx_map_system.current_field_id == SbrxFieldId(-25, 25);
+										 
                     if is_crickets_field {
                         task_system.mark_rocketbay_found();					
                     }
@@ -7582,9 +7585,9 @@ fn main() {
                                     chatbox.add_interaction(vec![
                                        ("-GRAND COMMANDER- \nSOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
                                        ("-SOLDIER- \nWHAT THE HELL IS GOING ON?", MessageType::Dialogue),
-									   ("-GRAND COMMANDER- \nWE SENT UP A SIGNAL TO FIND ALIEN LIFE. 
-									   \nNOW WE'RE BEING EXTERMINATED BY THEM.
-									   \nTHEY'RE EVEN CONTROLLING THE WILDLIFE.", MessageType::Dialogue),
+									   ("-GRAND COMMANDER- \nWE SENT UP A COMMUNICATION SIGNAL TO FIND 
+									   \n ALIEN LIFE. NOW WE'RE BEING EXTERMINATED 
+									   \nBY THEM.", MessageType::Dialogue),
 									   ("-HUNTER- \nWHAT CAN WE DO?", MessageType::Dialogue),
 									   ("-GRAND COMMANDER- \nLIBERATE THE SOUTHEAST MISSILE RANGE. 
 									   \nYOU'LL NEED TO FUEL UP THE FIGHTERJET 
