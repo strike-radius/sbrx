@@ -35,47 +35,6 @@ impl AudioManager {
         })
     }
 
-    /// Play looping background music
-    pub fn play_looping_sound(&self, path: &PathBuf) -> Result<Sink, String> {
-        //println!("[AudioManager] play_looping_sound called for: {:?}", path);
-        
-        // Check if file exists
-        if !path.exists() {
-            return Err(format!("Audio file does not exist: {:?}", path));
-        }
-        
-        let file = File::open(path)
-            .map_err(|e| format!("Failed to open audio file {:?}: {}", path, e))?;
-        
-        //println!("[AudioManager] File opened successfully, attempting to decode...");
-
-        // Use try_from for rodio 0.21.1 - handles format detection properly
-        let source = Decoder::try_from(file)
-            .map_err(|e| format!("Failed to decode audio file {:?}: {}", path, e))?;
-        
-        // Log audio properties
-        //println!("[AudioManager] Decoded successfully!");
-        //println!("[AudioManager]   Sample rate: {:?}", source.sample_rate());
-        //println!("[AudioManager]   Channels: {:?}", source.channels());
-        
-        let looped_source = source.repeat_infinite();
-
-        let sink = Sink::connect_new(&self.mixer);
-        sink.set_volume(1.0); // Ensure volume is at max
-        sink.append(looped_source);
-        
-        // Sink should already be playing, but let's be explicit
-        if sink.is_paused() {
-            //println!("[AudioManager] Sink was paused, unpausing...");
-            sink.play();
-        }
-        
-        //println!("[AudioManager] Looping sound started, sink empty: {}, paused: {}", 
-        //         sink.empty(), sink.is_paused());
-
-        Ok(sink)
-    }
-
     /// Load a sound effect and associate it with a name
     pub fn load_sound_effect(&self, name: &str, path: &PathBuf) -> Result<(), String> {
         //println!("[AudioManager] Loading sound effect '{}' from {:?}", name, path);
@@ -195,6 +154,7 @@ impl AudioManager {
             ("crickets", "crickets.ogg"),
 			("pause", "pause.ogg"),
 			("beat", "beat.ogg"),
+			("track3", "track3.ogg"),
         ];
 
         for (name, filename) in effects.iter() {
@@ -293,46 +253,5 @@ impl AudioManager {
   
  		Ok(sink)
  	}	
-
-    pub fn find_file_in_multiple_locations(base_filename: &str, exe_dir: &Path) -> Option<PathBuf> {
-        let mut potential_locations: Vec<Option<PathBuf>> = Vec::new();
-
-        potential_locations.push(Some(Path::new("assets").join(base_filename)));
-        potential_locations.push(Some(exe_dir.join("assets").join(base_filename)));
-        potential_locations.push(
-            exe_dir
-                .parent()
-                .map(|p| p.join("assets").join(base_filename)),
-        );
-        potential_locations.push(Some(exe_dir.join(base_filename)));
-        potential_locations.push(exe_dir.parent().map(|p| p.join(base_filename)));
-        potential_locations.push(Some(Path::new(".").join(base_filename)));
-        potential_locations.push(Some(Path::new("target/debug").join(base_filename)));
-
-        println!(
-            "Searching for '{}' in the following locations:",
-            base_filename
-        );
-        for path_option in &potential_locations {
-            if let Some(path) = path_option {
-                println!("  - {:?} (exists: {})", path.display(), path.exists());
-            }
-        }
-
-        for path_option in potential_locations {
-            if let Some(path) = path_option {
-                if path.exists() {
-                    println!("Found file '{}' at: {:?}", base_filename, path.display());
-                    return Some(path);
-                }
-            }
-        }
-
-        println!(
-            "Could not find file '{}' in any standard location",
-            base_filename
-        );
-        None
-    }
 }
  

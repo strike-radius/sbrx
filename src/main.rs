@@ -576,6 +576,38 @@ fn check_and_display_demonic_presence(
     }
 }
 
+fn handle_ambient_playlist(
+    audio_manager: &AudioManager,
+    is_special: bool,
+    bgm_sink: &mut Option<Sink>,
+    crickets_sink: &mut Option<Sink>,
+    index: &mut usize,
+    last_cat: &mut &str
+) {
+    let current_cat = if is_special { "special" } else { "default" };
+
+    if current_cat != *last_cat {
+        if let Some(s) = bgm_sink.take() { s.stop(); }
+        if let Some(s) = crickets_sink.take() { s.stop(); }
+        *index = 0;
+        *last_cat = current_cat;
+    }
+
+    let playlist = if is_special {
+        ["beat", "pause", "track3"]
+    } else {
+        ["track3", "beat", "pause"]
+    };
+
+    if bgm_sink.as_ref().map_or(true, |s| s.empty()) {
+        let track = playlist[*index];
+        if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
+            *bgm_sink = Some(sink);
+            *index = (*index + 1) % playlist.len();
+        }
+    }
+}
+
 fn main() {
     let screen_width = WIDTH;
     let screen_height = HEIGHT;
@@ -1294,6 +1326,8 @@ fn main() {
     // Timers for field-specific continuous spawning
     let mut night_reaver_spawn_timer = 0.0;
     let mut next_night_reaver_spawn = 5.0; // Initial delay
+    let mut ambient_playlist_index = 0;
+    let mut last_audio_category = "none";
 
     // --- WAVE SYSTEM: Track completed floors ---
     let mut completed_bunker_waves: HashSet<i32> = HashSet::new();
@@ -1459,30 +1493,7 @@ fn main() {
                         if let Some(sink) = crickets_sound_sink.take() {
                             sink.stop();
                         }				
-                        // Restart ambient audio based on ambient_track_state
-                        match ambient_track_state {
-                            AmbientTrackState::Background => {
-                                let audio_filename = "background_track.ogg";
-                                if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                    audio_filename,
-                                    &exe_dir,
-                                ) {
-                                    match audio_manager.play_looping_sound(&audio_path) {
-                                        Ok(sink) => current_bgm_sink = Some(sink),
-                                        Err(e) => println!("Warning: Failed to restart background music: {}", e),
-                                    }
-                                }
-                            }
-                            AmbientTrackState::Crickets => {
-                                match audio_manager.play_sfx_loop("crickets") {
-                                    Ok(sink) => crickets_sound_sink = Some(sink),
-                                    Err(e) => eprintln!("Failed to restart crickets sound: {}", e),
-                                }
-                            }
-                            AmbientTrackState::Muted => {
-                                // Do nothing - stay silent
-                            }
-                        }					
+				
                         if let GameState::FirmamentMode(ref mut firmament_game) = game_state {
                             firmament_game.is_paused = false;
                         }
@@ -1584,17 +1595,6 @@ fn main() {
                                 AmbientTrackState::Muted
                             }
                             AmbientTrackState::Muted => {
-                                let audio_filename = "background_track.ogg";
-                                if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                    audio_filename,
-                                    &exe_dir,
-                                ) {
-                                    match audio_manager.play_looping_sound(&audio_path) {
-                                        Ok(sink) => current_bgm_sink = Some(sink),
-                                        Err(e) => println!("Warning: Failed to start background music: {}", e),
-                                    }
-                                }
-                                //println!("[Audio] Ambient track: BACKGROUND");
                                 AmbientTrackState::Background
                             }
                         };
@@ -2811,41 +2811,21 @@ fn main() {
                     if is_crickets_field {
                         task_system.mark_rocketbay_found();					
                     }
-                    // Only auto-manage audio if in Background state (manual [M] selection overrides)
-                    if ambient_track_state == AmbientTrackState::Background {
-                        if is_crickets_field {
-                            if let Some(bgm_sink) = current_bgm_sink.take() {
-                                bgm_sink.stop();
-                            }
+                    match ambient_track_state {
+                        AmbientTrackState::Background => {
+                            handle_ambient_playlist(&audio_manager, is_crickets_field, &mut current_bgm_sink, &mut crickets_sound_sink, &mut ambient_playlist_index, &mut last_audio_category);
+                        }
+                        AmbientTrackState::Crickets => {
+                            if current_bgm_sink.is_some() { if let Some(s) = current_bgm_sink.take() { s.stop(); } }
                             if crickets_sound_sink.is_none() {
-                                match audio_manager.play_sfx_loop("beat") {
-                                    Ok(sink) => crickets_sound_sink = Some(sink),
-                                    Err(e) => eprintln!("Failed to play crickets sound: {}", e),
-                                }
-                            }
-                        } else {
-                            if let Some(cricket_sink) = crickets_sound_sink.take() {
-                                cricket_sink.stop();
-                            }
-                            if current_bgm_sink.is_none() {
-                                let audio_filename = "background_track.ogg";
-                                if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                    audio_filename,
-                                    &exe_dir,
-                                ) {
-                                    match audio_manager.play_looping_sound(&audio_path) {
-                                        Ok(sink) => current_bgm_sink = Some(sink),
-                                        Err(e) => {
-                                            println!(
-                                                "Warning: Failed to restart background music: {}",
-                                                e
-                                            )
-                                        }
-                                    }
-                                }
+                                if let Ok(s) = audio_manager.play_sfx_loop("crickets") { crickets_sound_sink = Some(s); }
                             }
                         }
-                    }					
+                        AmbientTrackState::Muted => {
+                            if let Some(s) = current_bgm_sink.take() { s.stop(); }
+                            if let Some(s) = crickets_sound_sink.take() { s.stop(); }
+                        }
+                    }				
                     let (current_min_x, current_max_x, current_min_y, current_max_y) =
                         if let Some(ref area_state) = current_area {
                             let (width, height, origin_x, origin_y) = match area_state.area_type {
@@ -7697,8 +7677,8 @@ fn main() {
                                     task_system.populate_taskbar3();
                                     chatbox.add_interaction(vec![
                                         ("-HUNTER- \nMANY THANKS. IF YOU SHOWED UP HALF A \nSECOND LATER, I'D BE IN PEICES.", MessageType::Dialogue),
-										("-SOLDIER- \nJOIN US.", MessageType::Dialogue),
-										("-HUNTER- \nIT'S THE LEAST I CAN DO. I'M A SHAPE SHIFTER \nSO DONT BE ALARMED.", MessageType::Dialogue),
+										("-SOLDIER- \nTHE WILDLIFE HAVE GONE BERSERK. JOIN US.", MessageType::Dialogue),
+										("-HUNTER- \nGLADLY. I'M A SHAPE SHIFTER SO DONT BE \nALARMED.", MessageType::Dialogue),
                                         ("A T-REX ROARS OUTSIDE", MessageType::Notification),
                                         ("-RACER- \nWHAT WAS THAT?", MessageType::Dialogue),
                                         ("-HUNTER- \nI WAS BEING CHASED BY A T-REX BEFORE BEING \nAMBUSHED BY THESE RAPTORS.", MessageType::Dialogue),
@@ -8681,30 +8661,7 @@ fn main() {
                     if let Some(sink) = crickets_sound_sink.take() {
                         sink.stop();
                     }
-                    // Restart ambient audio based on ambient_track_state
-                    match ambient_track_state {
-                        AmbientTrackState::Background => {
-                            let audio_filename = "background_track.ogg";
-                            if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                audio_filename,
-                                &exe_dir,
-                            ) {
-                                match audio_manager.play_looping_sound(&audio_path) {
-                                    Ok(sink) => current_bgm_sink = Some(sink),
-                                    Err(e) => println!("Warning: Failed to restart background music: {}", e),
-                                }
-                            }
-                        }
-                        AmbientTrackState::Crickets => {
-                            match audio_manager.play_sfx_loop("crickets") {
-                                Ok(sink) => crickets_sound_sink = Some(sink),
-                                Err(e) => eprintln!("Failed to restart crickets sound: {}", e),
-                            }
-                        }
-                        AmbientTrackState::Muted => {
-                            // Do nothing - stay silent
-                        }
-                    }					
+
                     // Clear downed state on full party wipe restart
                     downed_fighters.clear();
                     revival_kill_score = 0;
@@ -9044,25 +9001,11 @@ fn main() {
                     if !is_paused {
                         match ambient_track_state {
                             AmbientTrackState::Background => {
-                                if crickets_sound_sink.is_some() {
-                                    if let Some(sink) = crickets_sound_sink.take() {
-                                        sink.stop();
-                                    }
-                                }
-                                if current_bgm_sink.is_none() {
-                                    let audio_filename = "background_track.ogg";
-                                    if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                        audio_filename,
-                                        &exe_dir,
-                                    ) {
-                                        match audio_manager.play_looping_sound(&audio_path) {
-                                            Ok(sink) => current_bgm_sink = Some(sink),
-                                            Err(e) => {
-                                                println!("Warning: Failed to start background music in Firmament: {}", e)
-                                            }
-                                        }
-                                    }
-                                }
+                                let current_fm_field = firmament_game.get_current_field_id();
+                                // FIRMAMENT audio now uses the same shared playlist logic as standard PLAYING mode
+                                let is_fm_special = (current_fm_field.0 == -2 && current_fm_field.1 == 5) 
+                                                 || (current_fm_field.0 == -25 && current_fm_field.1 == 25);
+                                handle_ambient_playlist(&audio_manager, is_fm_special, &mut current_bgm_sink, &mut crickets_sound_sink, &mut ambient_playlist_index, &mut last_audio_category);
                             }
                             AmbientTrackState::Crickets => {
                                 if current_bgm_sink.is_some() {
@@ -9516,30 +9459,7 @@ fn main() {
                         if let Some(sink) = crickets_sound_sink.take() {
                             sink.stop();
                         }
-                        // Restart ambient audio based on ambient_track_state after death
-                        match ambient_track_state {
-                            AmbientTrackState::Background => {
-                                let audio_filename = "background_track.ogg";
-                                if let Some(audio_path) = AudioManager::find_file_in_multiple_locations(
-                                    audio_filename,
-                                    &exe_dir,
-                                ) {
-                                    match audio_manager.play_looping_sound(&audio_path) {
-                                        Ok(sink) => current_bgm_sink = Some(sink),
-                                        Err(e) => println!("Warning: Failed to restart background music: {}", e),
-                                    }
-                                }
-                            }
-                            AmbientTrackState::Crickets => {
-                                match audio_manager.play_sfx_loop("crickets") {
-                                    Ok(sink) => crickets_sound_sink = Some(sink),
-                                    Err(e) => eprintln!("Failed to restart crickets sound: {}", e),
-                                }
-                            }
-                            AmbientTrackState::Muted => {
-                                // Do nothing - stay silent
-                            }
-                        }						
+					
                         lmb_held = false; // Stop rapid fire on death
                         continue; // Skip the rest of the exit logic for this frame
                     }
