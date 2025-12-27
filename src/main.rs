@@ -820,19 +820,25 @@ fn main() {
  	    &sbrx_assets_path.join("sabercrossTITLE.png"),
  	    &texture_settings,
  	    "title_screen",
- 	);
+ 	);		
  	let pause_screen_texture = load_texture_or_exit(
  	    &mut texture_context,
  	    &sbrx_assets_path.join("pause_screen1.png"),
  	    &texture_settings,
  	    "pause_screen",
- 	);
+ 	);			
  	let inputs_display_texture = load_texture_or_exit(
  	    &mut texture_context,
  	    &sbrx_assets_path.join("inputs.png"),
  	    &texture_settings,
  	    "inputs_display",
  	);
+	let gear_texture = load_texture_or_exit(
+ 	    &mut texture_context,
+ 	    &sbrx_assets_path.join("gear.png"),
+ 	    &texture_settings,
+ 	    "gear",
+ 	);	
  	let block_fatigue_texture = load_texture_or_exit(
  	    &mut texture_context,
  	    &sbrx_assets_path.join("block_fatigue.png"),
@@ -1014,6 +1020,7 @@ fn main() {
  	    &texture_settings,
  	    "set_ranged",
  	);
+	
 
     // --- NEW: Load Group Icon Textures ---
     let mut group_icons: HashMap<FighterType, G2dTexture> = HashMap::new();
@@ -5639,6 +5646,12 @@ fn main() {
                                 }
                             }
                         }
+						
+                        if fighter.show_gear {
+                            let gear_h = gear_texture.get_height() as f64;
+                            // Drawing here ensures it is beneath the cursor logic that follows
+                            image(&gear_texture, tc.transform.trans(fighter.x + 175.0, fighter.y - gear_h / 20.0), g);
+                        }						
 
                         let (wmxc, wmxyc) = screen_to_world(&camera, mouse_x, mouse_y);
                         let dx_c = wmxc - fixed_crater.x;
@@ -6105,7 +6118,7 @@ fn main() {
                             fighter.draw_health_bar(tc, g);
 
                             fighter.draw_inputs_display(oc, g, &inputs_display_texture);
-                        }
+                        }										
 
                         // --- Find hovered CPU entity ---
                         let mut hovered_cpu_name: Option<String> = None;
@@ -6613,6 +6626,9 @@ fn main() {
                     }
 
                     match key {
+                        Key::G => {
+                            fighter.show_gear = !fighter.show_gear;
+                        }						
                         Key::D1 => {
                             if shift_held {
                                 println!("Shift + 1 was pressed!");

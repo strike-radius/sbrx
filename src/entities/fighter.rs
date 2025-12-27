@@ -43,6 +43,7 @@ pub struct Fighter {
 	pub boost: bool,
 	pub bike_boost_toggle_cooldown: f64,
 	pub boost_indicator_timer: f64,
+	pub show_gear: bool,
 }
 
 impl Fighter {
@@ -98,6 +99,7 @@ impl Fighter {
 			boost: true, // false to swap starting [SHIFT] key
 			bike_boost_toggle_cooldown: 0.0,
 			boost_indicator_timer: 0.0,
+			show_gear: false,
         }
     }
 

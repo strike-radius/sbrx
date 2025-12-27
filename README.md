@@ -1,6 +1,6 @@
 # Sabercross
 
-2D action RPG prototype with a timed strike combo system
+2D isometric combo-focused hack and slash 
 
 ## Building from Source
 
