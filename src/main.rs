@@ -669,7 +669,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.1.97 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.1.98 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -713,7 +713,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.1.97 Window created.");
+    println!("sbrx0.1.98 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -987,6 +987,12 @@ fn main() {
  	    &texture_settings,
  	    "sbrx_bike",
  	);
+ 	let sbrx_bike_crashed_texture = load_texture_or_exit(
+ 		&mut texture_context,
+ 		&sbrx_assets_path.join("player/racer/sbrx_bike_crashed.png"),
+ 		&texture_settings,
+ 		"sbrx_bike_crashed",
+ 	);	
     let sbrx_quad_texture_path = sbrx_assets_path.join("player/soldier/quad.png");
  	let sbrx_quad_texture = load_texture_or_exit(
  	    &mut texture_context,
@@ -994,6 +1000,12 @@ fn main() {
  	    &texture_settings,
  	    "sbrx_quad",
  	);
+ 	let sbrx_quad_crashed_texture = load_texture_or_exit(
+ 		&mut texture_context,
+ 		&sbrx_assets_path.join("player/soldier/quad_crashed.png"),
+ 		&texture_settings,
+ 		"sbrx_quad_crashed",
+ 	);	
 
     // Load Pulse Orb Texture
     let pulse_orb_texture_path = sbrx_assets_path.join("projectile/pulse_orb.png");
@@ -1381,7 +1393,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.1.97 Starting game loop...");
+    println!("sbrx0.1.98 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1444,11 +1456,14 @@ fn main() {
             }
         }
         if let Some(Button::Keyboard(Key::Escape)) = e.press_args() {
+            if matches!(game_state, GameState::Playing) && fighter.stun_timer > 0.0 {
+                // Ignore Escape during crash stun
+            } else {
             match game_state {
                 GameState::Playing | GameState::FirmamentMode(_) => {
                     // Check for conditions that prevent pausing
                     if let GameState::Playing = game_state {
-                        if block_system.block_broken || block_system.block_fatigue {
+                        if block_system.block_broken || block_system.block_fatigue || fighter.stun_timer > 0.0 {
                             println!("Cannot pause while block is broken or fatigued.");
                             continue; // Skip pause logic
                         }
@@ -1508,6 +1523,7 @@ fn main() {
                 }
                 _ => {}
             }
+			}
         }
 
         // Handle chatbox input separately from game state logic for global access.
@@ -1655,7 +1671,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.1.97 Playing state.");
+                    println!("Transitioning to sbrx0.1.98 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1677,7 +1693,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 1 . 97";
+                        let version_text = "v0 . 1 . 98";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1701,6 +1717,7 @@ fn main() {
             GameState::Playing => {
                 if let Some(args) = e.update_args() {
                     let dt = args.dt;
+					sbrx_bike.update(dt);
 
                     if !is_paused {
                         // Ensure textures are up to date with boost state every frame
@@ -2298,7 +2315,7 @@ fn main() {
                         }
                     }
 
-                    let is_stun_locked_for_anim = block_system.is_stun_locked();
+                    let is_stun_locked_for_anim = block_system.is_stun_locked() || fighter.stun_timer > 0.0;
                     if is_stun_locked_for_anim {
                         if !block_break_animation_active {
                             block_break_animation_active = true;
@@ -4406,6 +4423,82 @@ fn main() {
 
                     camera.update(fighter.x, fighter.y);
                 }
+				
+				// --- GROUND ASSET COLLISIONS ---
+				if !is_paused && fighter.invincible_timer <= 0.0 {
+					if let Some(assets) = placed_ground_assets.get(&sbrx_map_system.current_field_id) {
+						for asset in assets {
+							let dx = fighter.x - asset.x;
+							let dy = fighter.y - asset.y;
+							let dist_sq = dx * dx + dy * dy;
+							let collision_radius = 45.0; // Standard hitbox for assets
+
+							if dist_sq < collision_radius * collision_radius {
+								audio_manager.play_sound_effect("death").ok();
+								let angle = dy.atan2(dx);
+								
+								if fighter.state == RacerState::OnFoot {
+									// [TRIP]
+									fighter.current_hp -= 25.0;
+									let force = 400.0;
+									fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+									fighter.knockback_duration = 0.2;
+								} else {
+									// [CRASH]
+									fighter.current_hp -= 100.0;
+									fighter.stun_timer = 1.0;
+									let force = 800.0;
+									fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+									fighter.knockback_duration = 0.4;
+								
+									// Dismount
+									fighter.state = RacerState::OnFoot;
+									sbrx_bike.is_crashed = true; // Swaps texture to crashed for all synced views
+
+									// Relocate and knockback vehicle ONLY for RACER or SOLDIER
+									if fighter.fighter_type != FighterType::Hunter {
+										sbrx_bike.visible = true;
+										sbrx_bike.x = fighter.x;
+										sbrx_bike.y = fighter.y;
+
+										let bike_angle = angle + 0.5; // different trajectory from player
+										sbrx_bike.knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+										sbrx_bike.knockback_duration = 0.5;
+									} 
+									// If HUNTER, sbrx_bike stays at its last left location 
+									// but is_crashed flag (set above) ensures it renders as crashed.
+
+									let tex_set = match fighter.fighter_type {
+										FighterType::Racer => &racer_textures,
+										FighterType::Soldier => &soldier_textures,
+										FighterType::Hunter => &hunter_textures,
+									};
+									update_current_textures(&fighter, tex_set, &mut current_idle_texture, &mut current_fwd_texture, &mut current_backpedal_texture, &mut current_block_texture, &mut current_block_break_texture, &mut current_ranged_texture, &mut current_ranged_marker_texture, &mut current_ranged_blur_texture, &mut current_rush_texture, &mut current_strike_textures, shift_held);
+                                    current_racer_texture = current_block_break_texture; // Display crash animation immediately
+									chatbox.add_interaction(vec![("CRASHED!", MessageType::Notification)]);
+								}
+
+								if fighter.current_hp <= 0.0 {
+									fighter_hp_map.insert(fighter.fighter_type, 0.0);
+									let mut group_members = vec![FighterType::Racer];
+									if soldier_has_joined { group_members.push(FighterType::Soldier); }
+									if hunter_has_joined { group_members.push(FighterType::Hunter); }
+									let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
+
+									if group_members.len() > 1 && has_survivors {
+										game_state = GameState::DeathScreenGroup { death_type: DeathType::Crashed, downed_fighter_type: fighter.fighter_type };
+									} else {
+										game_state = GameState::DeathScreen(DeathType::Crashed);
+									}
+									if !downed_fighters.contains(&fighter.fighter_type) { downed_fighters.push(fighter.fighter_type); }
+									death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+								}
+								fighter.invincible_timer = 1.0;
+								break;
+							}
+						}
+					}
+				}				
 
                 if let Some(_) = e.render_args() {
                     window.draw_2d(&e, |c, g, device| {
@@ -5253,14 +5346,12 @@ fn main() {
                             };
 
                             if should_render_bike {
-                                let vehicle_texture_to_draw =
-                                    if fighter.fighter_type == FighterType::Soldier {
-                                        Some(&sbrx_quad_texture)
-                                    } else if fighter.fighter_type == FighterType::Racer {
-                                        Some(&sbrx_bike_texture)
-                                    } else {
-                                        Some(&sbrx_bike_texture)
-                                    };
+                                let vehicle_texture_to_draw = match (fighter.fighter_type, sbrx_bike.is_crashed) {
+                                    (FighterType::Soldier, false) => Some(&sbrx_quad_texture),
+                                    (FighterType::Soldier, true) => Some(&sbrx_quad_crashed_texture),
+                                    (_, false) => Some(&sbrx_bike_texture),
+                                    (_, true) => Some(&sbrx_bike_crashed_texture),
+                                };
 
                                 if let Some(vehicle_texture) = vehicle_texture_to_draw {
                                     image(
@@ -5650,7 +5741,7 @@ fn main() {
                         if fighter.show_gear {
                             let gear_h = gear_texture.get_height() as f64;
                             // Drawing here ensures it is beneath the cursor logic that follows
-                            image(&gear_texture, tc.transform.trans(fighter.x + 175.0, fighter.y - gear_h / 20.0), g);
+                            image(&gear_texture, tc.transform.trans(fighter.x + 175.0, fighter.y - gear_h / 2.5), g);
                         }						
 
                         let (wmxc, wmxyc) = screen_to_world(&camera, mouse_x, mouse_y);
@@ -6208,7 +6299,7 @@ fn main() {
                 }
 
                 if let Some(Button::Mouse(MouseButton::Left)) = e.press_args() {
-                    if !block_system.is_stun_locked() {
+                    if !block_system.is_stun_locked() && fighter.stun_timer <= 0.0 {
                         if fighter.is_reloading {
                             // Disable LMB input during reload
                         } else {
@@ -6349,7 +6440,7 @@ fn main() {
                 }
 
                 if let Some(Button::Mouse(MouseButton::Right)) = e.press_args() {
-                    if !block_system.is_stun_locked() && !lmb_held && !fighter.is_reloading {
+                    if !block_system.is_stun_locked() && fighter.stun_timer <= 0.0 && !lmb_held && !fighter.is_reloading {
 					// Force Hunter out of flight mode when blocking
 					if fighter.fighter_type == FighterType::Hunter && fighter.state == RacerState::OnBike {
 						fighter.state = RacerState::OnFoot;
@@ -6787,7 +6878,7 @@ fn main() {
                         _ => {}
                     }
 
-                    if !block_system.is_stun_locked() {
+                    if !block_system.is_stun_locked() && fighter.stun_timer <= 0.0 {
                         let (current_min_x, current_max_x, current_min_y, current_max_y) =
                             if let Some(ref area_state) = current_area {
                                 let (width, height, origin_x, origin_y) = match area_state.area_type
@@ -6814,6 +6905,15 @@ fn main() {
                         match key {
                             Key::V => {
                                 if !block_system.active && !is_paused {
+                                    // Clear crash state on mount
+                                    if fighter.state == RacerState::OnFoot {
+                                        let dx = fighter.x - sbrx_bike.x;
+                                        let dy = fighter.y - sbrx_bike.y;
+                                        if (dx*dx + dy*dy).sqrt() <= bike_interaction_distance {
+                                            sbrx_bike.is_crashed = false;
+                                        }
+                                    }									
+									
                                     if fighter.fighter_type == FighterType::Hunter {
                                         if current_area.is_none() {                     
                                             if fighter.fuel > 0.0 {
@@ -8301,6 +8401,7 @@ fn main() {
                         clear([0.0, 0.0, 0.0, 1.0], g);
 
                         let death_message_text = match death_type {
+							DeathType::Crashed => "DISTRACTED",
                             DeathType::Meteorite => "OBLITERATED BY METEORITE",
                             DeathType::GiantMantis => "EATEN BY GIANT MANTIS",
                             DeathType::Rattlesnake => "BITTEN BY RATTLESNAKE",
@@ -8849,6 +8950,7 @@ fn main() {
                         };
 
                         let death_message_text = match death_type {
+							DeathType::Crashed => "DISTRACTED",
                             DeathType::Meteorite => "OBLITERATED BY METEORITE",
                             DeathType::GiantMantis => "EATEN BY GIANT MANTIS",
                             DeathType::Rattlesnake => "BITTEN BY RATTLESNAKE",
@@ -9516,5 +9618,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.1.97 Game loop ended.");
+    println!("sbrx0.1.98 Game loop ended.");
 }

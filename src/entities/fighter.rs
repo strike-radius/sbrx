@@ -14,6 +14,7 @@ use piston_window::*;
 use crate::HashMap;
 
 pub struct Fighter {
+	pub stun_timer: f64,
     pub x: f64,
     pub y: f64,
     pub current_hp: f64,
@@ -92,6 +93,7 @@ impl Fighter {
             kill_counters,
             levels,
             stat_points_to_spend,
+			stun_timer: 0.0,
             ammo: 25,
             max_ammo: 25,
             is_reloading: false,
@@ -450,6 +452,10 @@ impl Fighter {
     }
 */
     pub fn update(&mut self, dt: f64, _line_y: f64) {
+		if self.stun_timer > 0.0 {
+ 			self.stun_timer -= dt;
+ 		}		
+		
         if self.knockback_duration > 0.0 {
             // Apply knockback movement
             self.x += self.knockback_velocity.x * dt;

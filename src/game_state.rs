@@ -15,6 +15,7 @@ pub enum GameState {
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum DeathType {
+	Crashed,
     Meteorite,
     GiantMantis,
     Rattlesnake,
