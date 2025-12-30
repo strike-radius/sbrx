@@ -3684,6 +3684,9 @@ fn main() {
                                     lmb_held = false;
                                     melee_rapid_fire_timer = 0.0;
                                     soldier_rapid_fire_timer = 0.0;
+									
+                                    if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+                                    if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }									
 
                                     fighter_hp_map.insert(fighter.fighter_type, 0.0);
 
@@ -4069,6 +4072,10 @@ fn main() {
                                                 lmb_held = false; // Stop rapid fire on death
                                                 melee_rapid_fire_timer = 0.0;
                                                 soldier_rapid_fire_timer = 0.0;
+												
+                                                if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+                                                if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }										
+												
                                                 let death_type_for_cpu = match cpu_entity.variant {
                                                     CpuVariant::GiantMantis => {
                                                         DeathType::GiantMantis
@@ -4480,6 +4487,8 @@ fn main() {
 
 								if fighter.current_hp <= 0.0 {
 									fighter_hp_map.insert(fighter.fighter_type, 0.0);
+								    if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+								    if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }									
 									let mut group_members = vec![FighterType::Racer];
 									if soldier_has_joined { group_members.push(FighterType::Soldier); }
 									if hunter_has_joined { group_members.push(FighterType::Hunter); }
