@@ -4432,7 +4432,7 @@ fn main() {
                 }
 				
 				// --- GROUND ASSET COLLISIONS ---
-				if !is_paused && fighter.invincible_timer <= 0.0 {
+				if !is_paused && fighter.invincible_timer <= 0.0 && current_area.is_none() {
 					if let Some(assets) = placed_ground_assets.get(&sbrx_map_system.current_field_id) {
 						for asset in assets {
 							let dx = fighter.x - asset.x;
@@ -4761,9 +4761,10 @@ fn main() {
                             stars.iter().for_each(|s| s.draw(tc, g));
 
                             // --- NEW: Render Placed Ground Assets ---
-                            if let Some(assets_to_render) =
-                                placed_ground_assets.get(&sbrx_map_system.current_field_id)
-                            {
+                            if current_area.is_none() {
+                                if let Some(assets_to_render) =
+                                    placed_ground_assets.get(&sbrx_map_system.current_field_id)
+                                {
                                 for asset in assets_to_render {
                                     if let Some(texture) =
                                         ground_asset_textures.get(&asset.texture_name)
@@ -4786,6 +4787,7 @@ fn main() {
                                         }
                                     }
                                 }
+								}
                             }
 
                             if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
