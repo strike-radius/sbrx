@@ -5,6 +5,7 @@ pub mod fighter;
 pub mod fixed_crater;
 pub mod fuel_pump;
 pub mod ground_assets;
+pub mod collision_barriers;
 pub mod moving_sphere;
 pub mod pulse_orb;
 pub mod pyramid;

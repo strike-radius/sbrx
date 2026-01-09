@@ -48,6 +48,8 @@ extern crate piston_window;
 extern crate rand;
 extern crate rodio;
 
+use crate::entities::collision_barriers::CollisionBarrierManager;
+
 use crate::game_state::AmbientTrackState;
 use crate::game_state::PauseTrackState;
 
@@ -594,9 +596,9 @@ fn handle_ambient_playlist(
     }
 
     let playlist = if is_special {
-        ["beat", "pause", "track3"]
+        ["sdtrk5", "sdtrk2",  "sdtrk4", "sdtrk3", "sdtrk1"]
     } else {
-        ["track3", "beat", "pause"]
+        ["sdtrk3", "sdtrk1", "sdtrk5", "sdtrk2", "sdtrk4"]
     };
 
     if bgm_sink.as_ref().map_or(true, |s| s.empty()) {
@@ -1282,6 +1284,7 @@ fn main() {
     let ground_asset_manager = GroundAssetManager::new();
     // Stores generated assets for each visited field to keep them consistent.
     let mut placed_ground_assets: HashMap<SbrxFieldId, Vec<PlacedAsset>> = HashMap::new();
+	let collision_barrier_manager = CollisionBarrierManager::new();
 
     // --- NEW: Ground Texture State ---
     let mut field_ground_texture_indices: HashMap<SbrxFieldId, usize> = HashMap::new();
@@ -1483,7 +1486,7 @@ fn main() {
                         // Start pause audio based on pause_track_state
                         match pause_track_state {
                             PauseTrackState::PauseMusic => {
-                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("pause") {
+                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("sdtrk2") {
                                     pause_sound_sink = Some(sink);
                                 }
                             }
@@ -1586,7 +1589,7 @@ fn main() {
                                 PauseTrackState::Muted
                             }
                             PauseTrackState::Muted => {
-                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("pause") {
+                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("sdtrk2") {
                                     pause_sound_sink = Some(sink);
                                 }
                                 //println!("[Audio] Pause track: PAUSE MUSIC");
@@ -4433,6 +4436,75 @@ fn main() {
 				
 				// --- GROUND ASSET COLLISIONS ---
 				if !is_paused && fighter.invincible_timer <= 0.0 && current_area.is_none() {
+					// --- COLLISION BARRIER CHECK ---
+ 					if let Some((barrier_x, barrier_y)) = collision_barrier_manager.check_collision(
+ 						&sbrx_map_system.current_field_id,
+ 						fighter.x,
+ 						fighter.y,
+ 						45.0, // collision threshold
+ 					) {
+ 						audio_manager.play_sound_effect("death").ok();
+ 						let dx = fighter.x - barrier_x;
+ 						let dy = fighter.y - barrier_y;
+ 						let angle = dy.atan2(dx);
+ 						
+ 						if fighter.state == RacerState::OnFoot {
+ 							// [TRIP] - on foot collision with barrier
+ 							fighter.current_hp -= 25.0;
+ 							let force = 400.0;
+ 							fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+ 							fighter.knockback_duration = 0.2;
+ 						} else {
+ 							// [CRASH] - vehicle collision with barrier
+ 							fighter.current_hp -= 100.0;
+ 							fighter.stun_timer = 1.0;
+ 							let force = 800.0;
+ 							fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+ 							fighter.knockback_duration = 0.4;
+ 						
+ 							// Dismount
+ 							fighter.state = RacerState::OnFoot;
+ 							sbrx_bike.is_crashed = true;
+ 
+ 							if fighter.fighter_type != FighterType::Hunter {
+ 								sbrx_bike.visible = true;
+ 								sbrx_bike.x = fighter.x;
+ 								sbrx_bike.y = fighter.y;
+ 								let bike_angle = angle + 0.5;
+ 								sbrx_bike.knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+ 								sbrx_bike.knockback_duration = 0.5;
+ 							}
+ 
+ 							let tex_set = match fighter.fighter_type {
+ 								FighterType::Racer => &racer_textures,
+ 								FighterType::Soldier => &soldier_textures,
+ 								FighterType::Hunter => &hunter_textures,
+ 							};
+ 							update_current_textures(&fighter, tex_set, &mut current_idle_texture, &mut current_fwd_texture, &mut current_backpedal_texture, &mut current_block_texture, &mut current_block_break_texture, &mut current_ranged_texture, &mut current_ranged_marker_texture, &mut current_ranged_blur_texture, &mut current_rush_texture, &mut current_strike_textures, shift_held);
+ 							current_racer_texture = current_block_break_texture;
+ 							chatbox.add_interaction(vec![("HIT BARRIER!", MessageType::Notification)]);
+ 						}
+ 
+ 						if fighter.current_hp <= 0.0 {
+ 							fighter_hp_map.insert(fighter.fighter_type, 0.0);
+ 							if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+ 							if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }
+ 							let mut group_members = vec![FighterType::Racer];
+ 							if soldier_has_joined { group_members.push(FighterType::Soldier); }
+ 							if hunter_has_joined { group_members.push(FighterType::Hunter); }
+ 							let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
+ 
+ 							if group_members.len() > 1 && has_survivors {
+ 								game_state = GameState::DeathScreenGroup { death_type: DeathType::Crashed, downed_fighter_type: fighter.fighter_type };
+ 							} else {
+ 								game_state = GameState::DeathScreen(DeathType::Crashed);
+ 							}
+ 							if !downed_fighters.contains(&fighter.fighter_type) { downed_fighters.push(fighter.fighter_type); }
+ 							death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+ 						}
+ 						fighter.invincible_timer = 1.0;
+ 					}
+					
 					if let Some(assets) = placed_ground_assets.get(&sbrx_map_system.current_field_id) {
 						for asset in assets {
 							let dx = fighter.x - asset.x;
@@ -4789,6 +4861,8 @@ fn main() {
                                 }
 								}
                             }
+							
+							
 
                             if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                 fuel_pump.fuel_interaction(&mut fighter, &fuel_pump_texture);
@@ -4796,6 +4870,20 @@ fn main() {
 
                             if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                 image(&track_texture, tc.transform.trans(track.x, track.y), g);
+								
+                                // DEBUG: Draw collision barriers
+                                //#[cfg(debug_assertions)]
+                                if let Some(barriers) = collision_barrier_manager.get_barriers(&sbrx_map_system.current_field_id) {
+                                    for line in &barriers.lines {
+                                        piston_window::line(
+                                            [1.0, 0.0, 0.0, 0.5], // Semi-transparent red
+                                            2.0,
+                                            [line.x1, line.y1, line.x2, line.y2],
+                                            tc.transform,
+                                            g,
+                                        );
+                                    }
+                                }								
 
                                 fuel_pump.draw(tc, g, &fuel_pump_texture);
 

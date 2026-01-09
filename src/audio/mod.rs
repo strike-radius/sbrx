@@ -152,9 +152,11 @@ impl AudioManager {
             ("mantis_attack", "SlashSwipe.wav"),
             ("slash_combo", "slashCombo.wav"),
             ("crickets", "crickets.ogg"),
-			("pause", "pause.ogg"),
-			("beat", "beat.ogg"),
-			("track3", "track3.ogg"),
+			("sdtrk1", "sdtrk1.ogg"),
+			("sdtrk2", "sdtrk2.ogg"),
+			("sdtrk3", "sdtrk3.ogg"),
+			("sdtrk4", "sdtrk4.ogg"),
+			("sdtrk5", "sdtrk5.ogg"),			
         ];
 
         for (name, filename) in effects.iter() {
