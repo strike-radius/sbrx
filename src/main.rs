@@ -48,7 +48,7 @@ extern crate piston_window;
 extern crate rand;
 extern crate rodio;
 
-use crate::entities::collision_barriers::CollisionBarrierManager;
+use crate::entities::collision_barriers::{CollisionBarrierManager, JumpZoneType};
 
 use crate::game_state::AmbientTrackState;
 use crate::game_state::PauseTrackState;
@@ -671,7 +671,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.1.98 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.1.99 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -715,7 +715,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.1.98 Window created.");
+    println!("sbrx0.1.99 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1285,6 +1285,8 @@ fn main() {
     // Stores generated assets for each visited field to keep them consistent.
     let mut placed_ground_assets: HashMap<SbrxFieldId, Vec<PlacedAsset>> = HashMap::new();
 	let collision_barrier_manager = CollisionBarrierManager::new();
+	let mut in_jump_sequence = false;  // Tracks if player is mid-jump from '1' -> '2' -> '3'
+	
 
     // --- NEW: Ground Texture State ---
     let mut field_ground_texture_indices: HashMap<SbrxFieldId, usize> = HashMap::new();
@@ -1396,7 +1398,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.1.98 Starting game loop...");
+    println!("sbrx0.1.99 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1674,7 +1676,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.1.98 Playing state.");
+                    println!("Transitioning to sbrx0.1.99 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -2369,6 +2371,14 @@ fn main() {
                                 };
                                 (MIN_X, MAX_X, min_y_world, MAX_Y)
                             };
+							
+						// Detect Rut Zone once for both Bike and OnFoot logic
+						let in_rut_zone = collision_barrier_manager.check_rut(
+							&sbrx_map_system.current_field_id,
+							fighter.x,
+							fighter.y,
+						);							
+							
                         if fighter.state == RacerState::OnBike {
                             let bike_speed = match fighter.fighter_type {
                                 FighterType::Racer => BIKE_SPEED,
@@ -2386,7 +2396,17 @@ fn main() {
 							
                             if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held {
                                 final_bike_speed *= 1.25 // 1.03; // Increase bike speed by 3%
-                            }							
+                            }
+
+                            // Apply Rut Zone speed reduction (50%) to Bike
+                            if in_rut_zone {
+                                final_bike_speed *= 0.5;
+                            }	
+
+							// Apply Rut Zone speed reduction (50%) to Bike
+							if in_rut_zone {
+								final_bike_speed *= 0.85;
+							}							
 							
                             let move_distance = final_bike_speed * dt;
                             let mut moved = false;
@@ -2586,8 +2606,17 @@ fn main() {
                             &format!("completing {} task(s)", tasks_completed),
                         );
                     }
+					
+					
 
                     // Deactivate CPUs on the racetrack if the final task is active
+                    // --- RUT ZONE CHECK ---
+                    let in_rut_zone = collision_barrier_manager.check_rut(
+                        &sbrx_map_system.current_field_id,
+                        fighter.x,
+                        fighter.y,
+                    );					
+					
                     let is_racetrack_finale_task_active = task_system
                         .has_task("PROCEED TO THE STARTING LINE")
                         && !task_system.is_task_complete("PROCEED TO THE STARTING LINE");
@@ -2931,7 +2960,9 @@ fn main() {
                                     move_vec.x /= mag;
                                     move_vec.y /= mag;
                                 }
-                                let speed_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
+                                let boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
+                                let rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
+                                let speed_mult = boost_mult * rut_mult;                                
                                 fighter.x += move_vec.x * fighter.run_speed * speed_mult * dt;
                                 fighter.y += move_vec.y * fighter.run_speed * speed_mult * dt;
                                 fighter.x = fighter.x.clamp(current_min_x, current_max_x);
@@ -4434,8 +4465,100 @@ fn main() {
                     camera.update(fighter.x, fighter.y);
                 }
 				
-				// --- GROUND ASSET COLLISIONS ---
-				if !is_paused && fighter.invincible_timer <= 0.0 && current_area.is_none() {
+// --- JUMP ZONE CHECK (1 -> 2 -> 3) ---
+				// This is moved OUTSIDE the invincibility check to allow Leg 2 to trigger immediately after Leg 1
+				if !is_paused && current_area.is_none() {
+					if let Some(hit) = collision_barrier_manager.check_jump(
+						&sbrx_map_system.current_field_id,
+						fighter.x,
+						fighter.y,
+					) {
+						match hit.zone_type {
+							JumpZoneType::Launch => {
+								// LEG 1: RAPID LAUNCH ('1' -> '2')
+								if fighter.knockback_duration <= 0.0 {
+									let dx = hit.target_x - fighter.x;
+									let dy = hit.target_y - fighter.y;
+									let dist = (dx * dx + dy * dy).sqrt();
+									if dist > 10.0 {
+										let norm_dx = dx / dist;
+										let norm_dy = dy / dist;
+										let travel_time = 0.25; 
+										let required_speed = dist / travel_time;
+										fighter.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+										fighter.knockback_duration = travel_time;
+										fighter.invincible_timer = 2.0;
+										in_jump_sequence = true;  // Start jump sequence
+									}
+								}
+							}
+							JumpZoneType::Air => {
+								// LEG 2: FLUID MID-AIR REDIRECT ('2' -> '3')
+								// Only triggers if player is in a jump sequence from '1'
+								if in_jump_sequence {
+									let dx = hit.target_x - fighter.x;
+									let dy = hit.target_y - fighter.y;
+									let dist = (dx * dx + dy * dy).sqrt();
+									
+									if dist > 50.0 {
+										let norm_dx = dx / dist;
+										let norm_dy = dy / dist;
+										let travel_time = 0.25; 
+										let required_speed = dist / travel_time;
+										fighter.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+										fighter.knockback_duration = travel_time;
+										fighter.invincible_timer = 2.0; 
+									}
+								}
+								// If not in jump sequence, do nothing (player walks/rides over)
+							}
+							JumpZoneType::Landing => {
+								// TOUCHDOWN: Reset physics and end high-immunity
+								if in_jump_sequence {
+									fighter.knockback_velocity = Vec2d::new(0.0, 0.0);
+									fighter.knockback_duration = 0.0;
+									if fighter.invincible_timer > 0.3 {
+										fighter.invincible_timer = 0.3;
+									}
+									in_jump_sequence = false;  // End jump sequence
+								}
+							}
+						}
+					}
+				}
+				
+				// --- CHAIN ZONE CHECK ('0' -> '0' -> '0' ...) ---
+				if let Some(hit) = collision_barrier_manager.check_chain(
+					&sbrx_map_system.current_field_id,
+					fighter.x,
+					fighter.y,
+				) {
+					if hit.is_final {
+						// Final zone in chain - stop and end immunity
+						fighter.knockback_velocity = Vec2d::new(0.0, 0.0);
+						fighter.knockback_duration = 0.0;
+						if fighter.invincible_timer > 0.3 {
+							fighter.invincible_timer = 0.3;
+						}
+					} else {
+						// Launch to next '0' in chain
+						let dx = hit.target_x - fighter.x;
+						let dy = hit.target_y - fighter.y;
+						let dist = (dx * dx + dy * dy).sqrt();
+						if dist > 0.0 {
+							let norm_dx = dx / dist;
+							let norm_dy = dy / dist;
+							let travel_time = 0.4;
+							let required_speed = dist / travel_time;
+							fighter.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+							fighter.knockback_duration = travel_time;
+							fighter.invincible_timer = 1.5;
+						}
+					}
+				}				
+ 
+ 				// --- GROUND ASSET COLLISIONS ---
+ 				if !is_paused && fighter.invincible_timer <= 0.0 && current_area.is_none() {
 					// --- COLLISION BARRIER CHECK ---
  					if let Some((barrier_x, barrier_y)) = collision_barrier_manager.check_collision(
  						&sbrx_map_system.current_field_id,
@@ -4504,6 +4627,13 @@ fn main() {
  						}
  						fighter.invincible_timer = 1.0;
  					}
+					
+ 					// --- RUT ZONE CHECK (speed reduction applied in movement code) ---
+ 					let _in_rut_zone = collision_barrier_manager.check_rut(
+ 						&sbrx_map_system.current_field_id,
+ 						fighter.x,
+ 						fighter.y,
+ 					);					
 					
 					if let Some(assets) = placed_ground_assets.get(&sbrx_map_system.current_field_id) {
 						for asset in assets {
@@ -4883,6 +5013,48 @@ fn main() {
                                             g,
                                         );
                                     }
+                                    // Draw jump zones by type
+                                    for zone in &barriers.jump_zones {
+                                        let color = match zone.zone_type {
+                                            JumpZoneType::Launch => [0.0, 1.0, 0.0, 0.3],  // Green
+                                            JumpZoneType::Air => [0.5, 0.5, 0.5, 0.3],     // Gray
+                                            JumpZoneType::Landing => [0.0, 0.5, 1.0, 0.3], // Blue
+                                        };
+                                        rectangle(
+                                            color,
+                                            [zone.x, zone.y, zone.width, zone.height],
+                                            tc.transform,
+                                            g,
+                                        );
+                                    }
+									// Draw chain zones (cyan) - shade indicates order
+									let chain_count = barriers.chain_zones.len();
+									for chain in &barriers.chain_zones {
+									   let alpha = if chain.is_final {
+										   0.7  // Brightest for final
+									   } else if chain_count > 1 {
+										   // Gradient: first is dimmest, increases toward final
+										   0.2 + (chain.chain_index as f32 / chain_count as f32) * 0.4
+									   } else {
+										   0.3
+									   };
+									   let color = [0.0, 1.0, 1.0, alpha];
+									   rectangle(
+										   color,
+										   [chain.x, chain.y, chain.width, chain.height],
+										   tc.transform,
+										   g,
+									   );
+									}								
+                                    // Draw rut zones (orange)
+                                    for rut in &barriers.rut_zones {
+                                        rectangle(
+                                            [1.0, 0.5, 0.0, 0.3], // Semi-transparent orange
+                                            [rut.x, rut.y, rut.width, rut.height],
+                                            tc.transform,
+                                            g,
+                                        );
+                                    }									
                                 }								
 
                                 fuel_pump.draw(tc, g, &fuel_pump_texture);
@@ -8500,7 +8672,7 @@ fn main() {
                         clear([0.0, 0.0, 0.0, 1.0], g);
 
                         let death_message_text = match death_type {
-							DeathType::Crashed => "DISTRACTED",
+							DeathType::Crashed => "CRASHED",
                             DeathType::Meteorite => "OBLITERATED BY METEORITE",
                             DeathType::GiantMantis => "EATEN BY GIANT MANTIS",
                             DeathType::Rattlesnake => "BITTEN BY RATTLESNAKE",
@@ -9049,19 +9221,19 @@ fn main() {
                         };
 
                         let death_message_text = match death_type {
-							DeathType::Crashed => "DISTRACTED",
-                            DeathType::Meteorite => "OBLITERATED BY METEORITE",
-                            DeathType::GiantMantis => "EATEN BY GIANT MANTIS",
-                            DeathType::Rattlesnake => "BITTEN BY RATTLESNAKE",
-                            DeathType::GiantRattlesnake => "SWALLOWED WHOLE BY GIANT RATTLESNAKE",
-                            DeathType::BloodIdol => "TORN APART BY BLOOD IDOL",
-                            DeathType::VoidTempest => "ANNIHILATED BY VOID TEMPEST",
-                            DeathType::Raptor => "MAULED BY A RAPTOR",
-                            DeathType::TRex => "DEVOURED BY A T-REX",
+							DeathType::Crashed => "CRASHED",
+                            DeathType::Meteorite => "WAS OBLITERATED BY METEORITE",
+                            DeathType::GiantMantis => "WAS EATEN BY GIANT MANTIS",
+                            DeathType::Rattlesnake => "WAS BITTEN BY RATTLESNAKE",
+                            DeathType::GiantRattlesnake => "WAS SWALLOWED WHOLE BY GIANT RATTLESNAKE",
+                            DeathType::BloodIdol => "WAS TORN APART BY BLOOD IDOL",
+                            DeathType::VoidTempest => "WAS ANNIHILATED BY VOID TEMPEST",
+                            DeathType::Raptor => "WAS MAULED BY A RAPTOR",
+                            DeathType::TRex => "WAS DEVOURED BY A T-REX",
                             DeathType::FlyingSaucer => "VAPORIZED BY FLYING SAUCER",
-                            DeathType::LightReaver => "ABDUCTED BY A LIGHT REAVER",
-                            DeathType::NightReaver => "MUTILATED BY A NIGHT REAVER",
-                            DeathType::RazorFiend => "SHREDDED BY A RAZOR FIEND",
+                            DeathType::LightReaver => "WAS ABDUCTED BY A LIGHT REAVER",
+                            DeathType::NightReaver => "WAS MUTILATED BY A NIGHT REAVER",
+                            DeathType::RazorFiend => "WAS SHREDDED BY A RAZOR FIEND",
                         };
 
                         let font_size = 32;
@@ -9072,7 +9244,7 @@ fn main() {
 
                         let mut current_y = screen_height / 2.0 - 180.0;
 
-                        let line1 = format!("{} WAS", downed_fighter_name);
+                        let line1 = format!("{}", downed_fighter_name);
                         let line1_width = glyphs.width(font_size, &line1).unwrap_or(0.0);
                         text(
                             white,
@@ -9717,5 +9889,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.1.98 Game loop ended.");
+    println!("sbrx0.1.99 Game loop ended.");
 }

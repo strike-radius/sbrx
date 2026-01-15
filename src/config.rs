@@ -26,7 +26,7 @@ pub mod boundaries {
 
 /// Fighter movement constants
 pub mod movement {
-    pub const BIKE_SPEED: f64 = 850.0;
+    pub const BIKE_SPEED: f64 = 650.0;
     pub const MOVEMENT_BUFFER_DURATION: f64 = 0.1;
     pub const RUSH_DURATION: f64 = 0.25;
     pub const RUSH_DISTANCE: f64 = 251.0;
