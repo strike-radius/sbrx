@@ -145,6 +145,7 @@ const MELEE_RAPID_FIRE_RATE: f64 = 0.125; // Match CPU entity damage application
 const ESC_HOLD_DURATION_TO_EXIT: f64 = 3.0;
 const DEATH_SCREEN_COOLDOWN_TIME: f64 = 0.5;
 const DEMO_END_ZONE: [f64; 4] = [0.0, 500.0, 2750.0, 3250.0]; // min_x, max_x, min_y, max_y
+const RACETRACK_SPAWN_POINT: (f64, f64) = (250.0, 3000.0);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum BunkerEntryChoice {
@@ -1167,8 +1168,12 @@ fn main() {
  	    &texture_settings,
  	    "race_spectators2",
  	);
-    let mut sbrx_bike = SbrxBike::new(line_y);
-    let mut fighter = Fighter::new(sbrx_bike.x + 100.0, sbrx_bike.y);
+    let mut sbrx_bike = SbrxBike::new(line_y);	
+	
+    // Use fixed spawn point for Racetrack field (0, 0)
+    let mut fighter = Fighter::new(RACETRACK_SPAWN_POINT.0, RACETRACK_SPAWN_POINT.1);
+    sbrx_bike.x = fighter.x + 100.0;
+    sbrx_bike.y = fighter.y;	
     let mut lvl_up_state = LvlUpState::None;
 
     // Create the map of mutable stats for each fighter
@@ -1386,7 +1391,7 @@ fn main() {
         }
     };
 
-    let mut last_field_entry_point = (sbrx_bike.x + 100.0, sbrx_bike.y);
+    let mut last_field_entry_point = (RACETRACK_SPAWN_POINT.0, RACETRACK_SPAWN_POINT.1);
     let mut death_screen_cooldown = 0.0;
     
     let mut task_reward_notification: Option<TaskRewardNotification> = None;
@@ -2394,6 +2399,11 @@ fn main() {
                                 bike_speed
                             };
 							
+                            // Apply 50% speed reduction when bike sliding (backpedal on bike)
+                            if backpedal_active {
+                                final_bike_speed *= 0.5;
+                            }
+							
                             if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held {
                                 final_bike_speed *= 1.25 // 1.03; // Increase bike speed by 3%
                             }
@@ -2960,9 +2970,12 @@ fn main() {
                                     move_vec.x /= mag;
                                     move_vec.y /= mag;
                                 }
+                                let _boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
+                                let _rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
                                 let boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
-                                let rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
-                                let speed_mult = boost_mult * rut_mult;                                
+                                let backpedal_mult = if !is_moving_forward { 0.5 } else { 1.0 };
+                                let speed_mult = boost_mult * backpedal_mult;								
+                                //let speed_mult = boost_mult * rut_mult;                                
                                 fighter.x += move_vec.x * fighter.run_speed * speed_mult * dt;
                                 fighter.y += move_vec.y * fighter.run_speed * speed_mult * dt;
                                 fighter.x = fighter.x.clamp(current_min_x, current_max_x);
@@ -4496,8 +4509,8 @@ fn main() {
 								// LEG 2: FLUID MID-AIR REDIRECT ('2' -> '3')
 								// Only triggers if player is in a jump sequence from '1'
 								if in_jump_sequence {
-									let dx = hit.target_x - fighter.x;
-									let dy = hit.target_y - fighter.y;
+									let dx = (hit.target_x + 50.0) - fighter.x;
+									let dy = (hit.target_y + 50.0) - fighter.y;  // Add 50 units to land lower
 									let dist = (dx * dx + dy * dy).sqrt();
 									
 									if dist > 50.0 {
@@ -8757,7 +8770,14 @@ fn main() {
                     let saved_levels = fighter.levels.clone();
                     let saved_stat_points = fighter.stat_points_to_spend.clone();
 
-                    fighter = Fighter::new(last_field_entry_point.0, last_field_entry_point.1);
+                    // Use fixed spawn point for Racetrack, otherwise use last entry point
+                    let spawn_point = if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                        RACETRACK_SPAWN_POINT
+                    } else {
+                        last_field_entry_point
+                    };
+                    fighter = Fighter::new(spawn_point.0, spawn_point.1);
+
                     fighter.score = saved_score;
                     fighter.kill_counters = saved_kill_counters;
                     fighter.levels = saved_levels;
