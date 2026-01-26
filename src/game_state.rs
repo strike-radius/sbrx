@@ -38,14 +38,6 @@ pub enum AmbientTrackState {
     Muted,       // No ambient track (silence, just game SFX)
 }
 
-/// Pause screen track state for [M] key cycling during pause
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PauseTrackState {
-    PauseMusic,  // pause.ogg (default)
-    Crickets,    // crickets.ogg
-    Muted,       // No music (silence)
-}
-
 #[derive(PartialEq)]
 pub enum RacerState {
     OnFoot,

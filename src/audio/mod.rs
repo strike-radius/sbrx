@@ -152,11 +152,21 @@ impl AudioManager {
             ("mantis_attack", "SlashSwipe.wav"),
             ("slash_combo", "slashCombo.wav"),
             ("crickets", "crickets.ogg"),
-			("sdtrk1", "sdtrk1.ogg"),
-			("sdtrk2", "sdtrk2.ogg"),
-			("sdtrk3", "sdtrk3.ogg"),
-			("sdtrk4", "sdtrk4.ogg"),
-			("sdtrk5", "sdtrk5.ogg"),			
+            ("sdtrk1", "background_tracks/sdtrk1.ogg"),
+            ("sdtrk2", "background_tracks/sdtrk2.ogg"),
+            ("sdtrk3", "background_tracks/sdtrk3.ogg"),
+            ("sdtrk4", "background_tracks/sdtrk4.ogg"),
+            ("sdtrk5", "background_tracks/sdtrk5.ogg"),
+            ("sdtrk6", "background_tracks/sdtrk6.ogg"),
+            ("sdtrk7", "background_tracks/sdtrk7.ogg"),
+            ("sdtrk8", "background_tracks/sdtrk8.ogg"),
+            ("sdtrk9", "background_tracks/sdtrk9.ogg"),
+            ("sdtrk10", "background_tracks/sdtrk10.ogg"),
+            ("sdtrk11", "background_tracks/sdtrk11.ogg"),
+            ("sdtrk12", "background_tracks/sdtrk12.ogg"),
+            ("sdtrk13", "background_tracks/sdtrk13.ogg"),
+            ("sdtrk14", "background_tracks/sdtrk14.ogg"),
+            ("sdtrk15", "background_tracks/sdtrk15.ogg"),
         ];
 
         for (name, filename) in effects.iter() {
@@ -233,27 +243,5 @@ impl AudioManager {
  
         Ok(sink)
     }
-
- 	pub fn play_sfx_with_sink_looped(&self, name: &str) -> Result<Sink, String> {
- 		let path = {
- 			let effects_guard = self.sound_effects.lock().unwrap_or_else(|e| e.into_inner());
- 			effects_guard
- 				.get(name)
- 				.ok_or_else(|| format!("Sound effect '{}' not found", name))?
- 				.clone()
- 		};
-  
- 		let file = File::open(&path)
- 			.map_err(|e| format!("Failed to open audio file {}: {}", name, e))?;
-  
- 		let source = Decoder::try_from(file)
- 			.map_err(|e| format!("Failed to decode audio file {}: {}", name, e))?;
-  
- 		let sink = Sink::connect_new(&self.mixer);
- 		sink.set_volume(1.0);
- 		sink.append(source.repeat_infinite());
-  
- 		Ok(sink)
- 	}	
 }
  

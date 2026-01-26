@@ -1,4 +1,5 @@
-// file: src/entities/collision_barriers.rs
+// file: src/entities/collision_barriers.rs 
+// racetrack manager
 
 use crate::map_system::FieldId as SbrxFieldId;
 use std::collections::HashMap;
@@ -591,6 +592,7 @@ pub struct CollisionBarrierManager {
     barriers: HashMap<SbrxFieldId, FieldCollisionBarriers>,
 }
 
+// racetrack manager
 impl CollisionBarrierManager {
     pub fn new() -> Self {
         let mut manager = CollisionBarrierManager {

@@ -51,7 +51,6 @@ extern crate rodio;
 use crate::entities::collision_barriers::{CollisionBarrierManager, JumpZoneType};
 
 use crate::game_state::AmbientTrackState;
-use crate::game_state::PauseTrackState;
 
 use crate::combat::block::KINETIC_STRIKE_MULTIPLIERS;
 use crate::combat::block::KINETIC_RUSH_BASE_DISTANCE_MULTIPLIER;
@@ -183,6 +182,12 @@ pub struct DamageText {
 
 pub struct TaskRewardNotification {
     pub text: String,
+    pub lifetime: f64,
+}
+
+/// Notification for displaying current background track name
+pub struct TrackNotification {
+    pub track_name: String,
     pub lifetime: f64,
 }
 
@@ -581,34 +586,24 @@ fn check_and_display_demonic_presence(
 
 fn handle_ambient_playlist(
     audio_manager: &AudioManager,
-    is_special: bool,
     bgm_sink: &mut Option<Sink>,
-    crickets_sink: &mut Option<Sink>,
     index: &mut usize,
-    last_cat: &mut &str
-) {
-    let current_cat = if is_special { "special" } else { "default" };
-
-    if current_cat != *last_cat {
-        if let Some(s) = bgm_sink.take() { s.stop(); }
-        if let Some(s) = crickets_sink.take() { s.stop(); }
-        *index = 0;
-        *last_cat = current_cat;
-    }
-
-    let playlist = if is_special {
-        ["sdtrk5", "sdtrk2",  "sdtrk4", "sdtrk3", "sdtrk1"]
-    } else {
-        ["sdtrk3", "sdtrk1", "sdtrk5", "sdtrk2", "sdtrk4"]
-    };
+) -> Option<String> {
+    let playlist = [
+        "sdtrk1", "sdtrk2", "sdtrk3", "sdtrk4", "sdtrk5",
+        "sdtrk6", "sdtrk7", "sdtrk8", "sdtrk9", "sdtrk10",
+        "sdtrk11", "sdtrk12", "sdtrk13", "sdtrk14", "sdtrk15"
+    ];	
 
     if bgm_sink.as_ref().map_or(true, |s| s.empty()) {
         let track = playlist[*index];
         if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
             *bgm_sink = Some(sink);
             *index = (*index + 1) % playlist.len();
+			return Some(track.to_string());
         }
     }
+	None
 }
 
 fn main() {
@@ -672,7 +667,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.1.99 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.0 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -716,7 +711,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.1.99 Window created.");
+    println!("sbrx0.2.0 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1070,8 +1065,8 @@ fn main() {
         group_icons_selected.insert(fighter_type_enums[i], icon_selected_tex);
     }
     // CPU TEXTURES
-    let random_image_x = safe_gen_range(MIN_X, MAX_X, "random image x");
-    let random_image_y = safe_gen_range(MIN_Y, MAX_Y, "random image y");
+    let random_image_x = 500.0;
+    let random_image_y = 700.0;
     let mantis_cpu_textures =
         load_cpu_textures(&mut texture_context, &sbrx_assets_path, "giant_mantis");
     let blood_idol_cpu_textures =
@@ -1302,12 +1297,10 @@ fn main() {
     let mut bike_accelerate_sound_sink: Option<Sink> = None;
     let mut bike_idle_sound_sink: Option<Sink> = None;
     let mut title_sound_played = false;
-	let mut pause_sound_sink: Option<Sink> = None;
 	let mut title_sound_sink: Option<Sink> = None;
     let mut current_bgm_sink: Option<Sink> = None;
     let mut crickets_sound_sink: Option<Sink> = None;
 	let mut ambient_track_state = AmbientTrackState::Background; // [M] key cycles
-	let mut pause_track_state = PauseTrackState::PauseMusic; // [M] key cycles 
     let mut sbrx_map_system = SbrxMapSystem::new("FLATLINE".to_string(), SbrxFieldId(0, 0));
     let mut fog_of_war = FogOfWar::new();
     let mut rattlesnakes_spawned_in_field0_score3 = false;
@@ -1356,7 +1349,7 @@ fn main() {
     let mut night_reaver_spawn_timer = 0.0;
     let mut next_night_reaver_spawn = 5.0; // Initial delay
     let mut ambient_playlist_index = 0;
-    let mut last_audio_category = "none";
+
 
     // --- WAVE SYSTEM: Track completed floors ---
     let mut completed_bunker_waves: HashSet<i32> = HashSet::new();
@@ -1395,6 +1388,7 @@ fn main() {
     let mut death_screen_cooldown = 0.0;
     
     let mut task_reward_notification: Option<TaskRewardNotification> = None;
+	let mut track_notification: Option<TrackNotification> = None;
 
     let mut racetrack_active = false;
     let mut endless_arena_mode_active = false;
@@ -1403,7 +1397,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.1.99 Starting game loop...");
+    println!("sbrx0.2.0 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1483,30 +1477,7 @@ fn main() {
                     combo_system.reset();
                     if is_paused {
                         println!("Game Paused.");
-                        // Stop ambient audio before starting pause audio
-                        if let Some(sink) = current_bgm_sink.take() {
-                            sink.stop();
-                        }
-                        if let Some(sink) = crickets_sound_sink.take() {
-                            sink.stop();
-                        }						
-                        // Start pause audio based on pause_track_state
-                        match pause_track_state {
-                            PauseTrackState::PauseMusic => {
-                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("sdtrk2") {
-                                    pause_sound_sink = Some(sink);
-                                }
-                            }
-                            PauseTrackState::Crickets => {
-                                match audio_manager.play_sfx_loop("crickets") {
-                                    Ok(sink) => crickets_sound_sink = Some(sink),
-                                    Err(e) => eprintln!("Failed to play crickets sound: {}", e),
-                                }
-                            }
-                            PauseTrackState::Muted => {
-                                // Do nothing - silence
-                            }
-                        }
+						// Pause bike sounds only - BGM/ambient continues seamlessly
                         if let Some(ref sink) = bike_accelerate_sound_sink {
                             sink.pause();
                         }
@@ -1518,13 +1489,13 @@ fn main() {
                         }
                     } else {
                         println!("Game Unpaused.");
-                        if let Some(sink) = pause_sound_sink.take() {
-                            sink.stop();
+                        // Resume bike sounds - BGM/ambient was never stopped
+                        if let Some(ref sink) = bike_accelerate_sound_sink {
+                            sink.play();
                         }
-                        // Stop any pause-related crickets
-                        if let Some(sink) = crickets_sound_sink.take() {
-                            sink.stop();
-                        }				
+                        if let Some(ref sink) = bike_idle_sound_sink {
+                            sink.play();
+                        }			
 				
                         if let GameState::FirmamentMode(ref mut firmament_game) = game_state {
                             firmament_game.is_paused = false;
@@ -1572,35 +1543,53 @@ fn main() {
                 }
                 Key::M => {
                     if is_paused {
-                        // Cycle pause track state: PauseMusic -> Crickets -> Muted -> PauseMusic
-                        pause_track_state = match pause_track_state {
-                            PauseTrackState::PauseMusic => {
-                                if let Some(sink) = pause_sound_sink.take() {
+                        // While paused, [M] cycles the same ambient track state as unpaused
+                        // This affects the BGM that continues playing during pause
+                        ambient_track_state = match ambient_track_state {
+                            AmbientTrackState::Background => {
+                                if let Some(sink) = current_bgm_sink.take() {
                                     sink.stop();
                                 }
                                 match audio_manager.play_sfx_loop("crickets") {
                                     Ok(sink) => crickets_sound_sink = Some(sink),
                                     Err(e) => eprintln!("Failed to play crickets sound: {}", e),
                                 }
-                                //println!("[Audio] Pause track: CRICKETS");
-                                PauseTrackState::Crickets
+                                AmbientTrackState::Crickets
                             }
-                            PauseTrackState::Crickets => {
+                            AmbientTrackState::Crickets => {
                                 if let Some(sink) = crickets_sound_sink.take() {
                                     sink.stop();
                                 }
-                                if let Some(sink) = pause_sound_sink.take() {
+                                if let Some(sink) = current_bgm_sink.take() {
                                     sink.stop();
                                 }
-                                //println!("[Audio] Pause track: MUTED");
-                                PauseTrackState::Muted
+                                AmbientTrackState::Muted
                             }
-                            PauseTrackState::Muted => {
-                                if let Ok(sink) = audio_manager.play_sfx_with_sink_looped("sdtrk2") {
-                                    pause_sound_sink = Some(sink);
+                            AmbientTrackState::Muted => {
+                                // Start the next track in the playlist
+                                let playlist = [
+								"sdtrk1", 
+								"sdtrk2", 
+								"sdtrk3", 
+								"sdtrk4", 
+								"sdtrk5",
+								"sdtrk6", 
+								"sdtrk7", 
+								"sdtrk8", 
+								"sdtrk9", 
+								"sdtrk10",
+								"sdtrk11", 
+								"sdtrk12", 
+								"sdtrk13", 
+								"sdtrk14", 
+								"sdtrk15"								
+								];
+                                let track = playlist[ambient_playlist_index];
+                                if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
+                                    current_bgm_sink = Some(sink);
                                 }
-                                //println!("[Audio] Pause track: PAUSE MUSIC");
-                                PauseTrackState::PauseMusic
+                                ambient_playlist_index = (ambient_playlist_index + 1) % playlist.len();							
+                                AmbientTrackState::Background
                             }
                         };
                     } else {
@@ -1628,9 +1617,96 @@ fn main() {
                                 AmbientTrackState::Muted
                             }
                             AmbientTrackState::Muted => {
+                                // Start the next track in the playlist
+                                let playlist = [
+								"sdtrk1", 
+								"sdtrk2", 
+								"sdtrk3", 
+								"sdtrk4", 
+								"sdtrk5",
+								"sdtrk6", 
+								"sdtrk7", 
+								"sdtrk8", 
+								"sdtrk9", 
+								"sdtrk10",
+								"sdtrk11", 
+								"sdtrk12", 
+								"sdtrk13", 
+								"sdtrk14", 
+								"sdtrk15"								
+								];
+                                let track = playlist[ambient_playlist_index];
+                                if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
+                                    current_bgm_sink = Some(sink);
+                                }
+                                ambient_playlist_index = (ambient_playlist_index + 1) % playlist.len();								
                                 AmbientTrackState::Background
                             }
                         };
+                    }
+                }	
+                Key::Comma => {
+                    // Previous track in playlist
+                    if let Some(sink) = current_bgm_sink.take() {
+                        sink.stop();
+                    }
+                    let playlist = [
+                        "sdtrk1", "sdtrk2", "sdtrk3", "sdtrk4", "sdtrk5",
+                        "sdtrk6", "sdtrk7", "sdtrk8", "sdtrk9", "sdtrk10",
+                        "sdtrk11", "sdtrk12", "sdtrk13", "sdtrk14", "sdtrk15"
+                    ];
+                    // Go back TWO tracks (one to get current, one more for previous)
+                    // because index always points to the NEXT track to play
+                    if ambient_playlist_index < 2 {
+                        ambient_playlist_index = playlist.len() + ambient_playlist_index - 2;
+                    } else {
+                        ambient_playlist_index -= 2;
+                    }
+                    let track = playlist[ambient_playlist_index];
+                    if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
+                        current_bgm_sink = Some(sink);
+						track_notification = Some(TrackNotification {
+						    track_name: track.to_string(),
+						    lifetime: 3.0,
+						});	
+                        // Advance index so handle_ambient_playlist plays the NEXT track when this one finishes
+                        ambient_playlist_index = (ambient_playlist_index + 1) % playlist.len();
+                    }
+                    // Set state to Background if it was Muted or Crickets
+                    if ambient_track_state != AmbientTrackState::Background {
+                        if let Some(sink) = crickets_sound_sink.take() {
+                            sink.stop();
+                        }
+                        ambient_track_state = AmbientTrackState::Background;
+                    }
+                }
+                Key::Period => {
+                    // Next track in playlist
+                    if let Some(sink) = current_bgm_sink.take() {
+                        sink.stop();
+                    }
+                    let playlist = [
+                        "sdtrk1", "sdtrk2", "sdtrk3", "sdtrk4", "sdtrk5",
+                        "sdtrk6", "sdtrk7", "sdtrk8", "sdtrk9", "sdtrk10",
+                        "sdtrk11", "sdtrk12", "sdtrk13", "sdtrk14", "sdtrk15"
+                    ];
+					// Index already points to the next track, so just use it
+                    let track = playlist[ambient_playlist_index];
+                    if let Ok(sink) = audio_manager.play_sfx_with_sink(track) {
+                        current_bgm_sink = Some(sink);
+					    track_notification = Some(TrackNotification {
+						    track_name: track.to_string(),
+							lifetime: 3.0,
+				 	    });
+                        // Advance index so handle_ambient_playlist plays the NEXT track when this one finishes
+                        ambient_playlist_index = (ambient_playlist_index + 1) % playlist.len();
+                    }
+                    // Set state to Background if it was Muted or Crickets
+                    if ambient_track_state != AmbientTrackState::Background {
+                        if let Some(sink) = crickets_sound_sink.take() {
+                            sink.stop();
+                        }
+                        ambient_track_state = AmbientTrackState::Background;
                     }
                 }				
                 _ => {}
@@ -1681,7 +1757,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.1.99 Playing state.");
+                    println!("Transitioning to sbrx0.2.0 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1703,7 +1779,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 1 . 98";
+                        let version_text = "v0 . 2 . 0";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1773,6 +1849,14 @@ fn main() {
                                 //println!("[ARENA MODE] Player entered demo end zone. Endless arena activated.");
                             }
                         }
+						
+						// Update background_track notification lifetime
+						if let Some(ref mut notif) = track_notification {
+							notif.lifetime -= dt;
+							if notif.lifetime <= 0.0 {
+								track_notification = None;
+							}
+						}						
 
                         if endless_arena_mode_active {
                             endless_arena_timer += dt; // Increment timer
@@ -2871,15 +2955,20 @@ fn main() {
                         );
                     }
 					
-                    let is_crickets_field = sbrx_map_system.current_field_id == SbrxFieldId(-2, 5) 
-                                         || sbrx_map_system.current_field_id == SbrxFieldId(-25, 25);
-										 
-                    if is_crickets_field {
-                        task_system.mark_rocketbay_found();					
-                    }
+                    // Mark Rocketbay task as found when entering these fields
+                    if sbrx_map_system.current_field_id == SbrxFieldId(-2, 5) 
+                        || sbrx_map_system.current_field_id == SbrxFieldId(-25, 25) {
+                        task_system.mark_rocketbay_found();
+                    }					
+					
                     match ambient_track_state {
                         AmbientTrackState::Background => {
-                            handle_ambient_playlist(&audio_manager, is_crickets_field, &mut current_bgm_sink, &mut crickets_sound_sink, &mut ambient_playlist_index, &mut last_audio_category);
+                            if let Some(track_name) = handle_ambient_playlist(&audio_manager, &mut current_bgm_sink, &mut ambient_playlist_index) {
+                                track_notification = Some(TrackNotification {
+                                    track_name,
+                                    lifetime: 3.0, // Display for 3 seconds
+                                });
+                            }
                         }
                         AmbientTrackState::Crickets => {
                             if current_bgm_sink.is_some() { if let Some(s) = current_bgm_sink.take() { s.stop(); } }
@@ -2970,12 +3059,10 @@ fn main() {
                                     move_vec.x /= mag;
                                     move_vec.y /= mag;
                                 }
-                                let _boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
-                                let _rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
                                 let boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
+								let rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
                                 let backpedal_mult = if !is_moving_forward { 0.5 } else { 1.0 };
-                                let speed_mult = boost_mult * backpedal_mult;								
-                                //let speed_mult = boost_mult * rut_mult;                                
+								let speed_mult = boost_mult * backpedal_mult * rut_mult;
                                 fighter.x += move_vec.x * fighter.run_speed * speed_mult * dt;
                                 fighter.y += move_vec.y * fighter.run_speed * speed_mult * dt;
                                 fighter.x = fighter.x.clamp(current_min_x, current_max_x);
@@ -4728,6 +4815,37 @@ fn main() {
                     window.draw_2d(&e, |c, g, device| {
                         let tc = camera.transform(c);
                         let oc = c;
+						
+						// Render track notification (bottom right)
+						if let Some(ref notif) = track_notification {
+							let text = format!("track: {}", notif.track_name);
+							let font_size = 18;
+							let text_width = glyphs.width(font_size, &text).unwrap_or(150.0);
+							let padding = 8.0;
+							let box_width = text_width + padding * 2.0;
+							let box_height = font_size as f64 + padding * 2.0;
+							let box_x = screen_width - box_width - 20.0;
+							let box_y = screen_height - box_height - 20.0;
+							
+							// Dark gray background
+							rectangle(
+								[0.2, 0.2, 0.2, 0.8],
+								[box_x, box_y, box_width, box_height],
+								c.transform,
+								g,
+							);
+							
+							// Green text
+							piston_window::text::Text::new_color([0.0, 1.0, 0.0, 1.0], font_size)
+								.draw(
+									&text,
+									&mut glyphs,
+									&c.draw_state,
+									c.transform.trans(box_x + padding, box_y + padding + font_size as f64 - 4.0),
+									g,
+								)
+								.ok();
+						}						
 
                         if let Some(area_state) = &current_area {
                             let (origin_x, origin_y, width, height, ground_color) =
@@ -5815,6 +5933,37 @@ fn main() {
                                 )
                                 .ok();
                         }
+						
+                        // --- TRACK NOTIFICATION (bottom right) ---
+                        if let Some(ref notif) = track_notification {
+                            let text = format!("track: {}", notif.track_name);
+                            let font_size = 18;
+                            let text_width = glyphs.width(font_size, &text).unwrap_or(150.0);
+                            let padding = 8.0;
+                            let box_width = text_width + padding * 2.0;
+                            let box_height = font_size as f64 + padding * 2.0;
+                            let box_x = screen_width - box_width - 20.0;
+                            let box_y = screen_height - box_height - 20.0;
+                            
+                            // Dark gray background padding
+                            rectangle(
+                                [0.2, 0.2, 0.2, 0.8],
+                                [box_x, box_y, box_width, box_height],
+                                oc.transform,
+                                g,
+                            );
+                            
+                            // Green text
+                            text::Text::new_color([0.0, 1.0, 0.0, 1.0], font_size)
+                                .draw(
+                                    &text,
+                                    &mut glyphs,
+                                    &oc.draw_state,
+                                    oc.transform.trans(box_x + padding, box_y + padding + font_size as f64 - 2.0),
+                                    g,
+                                )
+                                .ok();
+                        }						
 
                         // --- WAVE UI ---
                         if let Some(wave_text) = wave_manager.get_ui_text() {
@@ -9063,12 +9212,6 @@ fn main() {
                     if let Some(sink) = bike_idle_sound_sink.take() {
                         sink.stop();
                     }
-                    if let Some(sink) = current_bgm_sink.take() {
-                        sink.stop();
-                    }
-                    if let Some(sink) = crickets_sound_sink.take() {
-                        sink.stop();
-                    }
 
                     // Clear downed state on full party wipe restart
                     downed_fighters.clear();
@@ -9377,6 +9520,8 @@ fn main() {
                                 current_y += line_height;
                             }
                         }
+						
+						
 
                         glyphs.factory.encoder.flush(device);
                     });
@@ -9406,15 +9551,25 @@ fn main() {
                     firmament_game.update(args.dt);
 					chatbox.update(args.dt, enter_key_held);
 					
+                    // Update background_track notification lifetime in Firmament mode
+                    if let Some(ref mut notif) = track_notification {
+                        notif.lifetime -= args.dt;
+                        if notif.lifetime <= 0.0 {
+                            track_notification = None;
+                        }
+                    }					
+					
                     // Ensure ambient track is playing in Firmament mode (respects [M] key state)
                     if !is_paused {
                         match ambient_track_state {
                             AmbientTrackState::Background => {
-                                let current_fm_field = firmament_game.get_current_field_id();
                                 // FIRMAMENT audio now uses the same shared playlist logic as standard PLAYING mode
-                                let is_fm_special = (current_fm_field.0 == -2 && current_fm_field.1 == 5) 
-                                                 || (current_fm_field.0 == -25 && current_fm_field.1 == 25);
-                                handle_ambient_playlist(&audio_manager, is_fm_special, &mut current_bgm_sink, &mut crickets_sound_sink, &mut ambient_playlist_index, &mut last_audio_category);
+                                if let Some(track_name) = handle_ambient_playlist(&audio_manager, &mut current_bgm_sink, &mut ambient_playlist_index) {
+                                    track_notification = Some(TrackNotification {
+                                        track_name,
+                                        lifetime: 3.0,
+                                    });
+                                }
                             }
                             AmbientTrackState::Crickets => {
                                 if current_bgm_sink.is_some() {
@@ -9597,6 +9752,37 @@ fn main() {
 
                         // Draw on-screen warnings on top of everything
                         chatbox.draw_warnings(c, g, &mut glyphs);
+
+                        // --- TRACK NOTIFICATION (bottom right) - Firmament Mode ---
+                        if let Some(ref notif) = track_notification {
+                            let text = format!("track: {}", notif.track_name);
+                            let font_size = 18;
+                            let text_width = glyphs.width(font_size, &text).unwrap_or(150.0);
+                            let padding = 8.0;
+                            let box_width = text_width + padding * 2.0;
+                            let box_height = font_size as f64 + padding * 2.0;
+                            let box_x = screen_width - box_width - 20.0;
+                            let box_y = screen_height - box_height - 20.0;
+                            
+                            // Dark gray background padding
+                            rectangle(
+                                [0.2, 0.2, 0.2, 0.8],
+                                [box_x, box_y, box_width, box_height],
+                                c.transform,
+                                g,
+                            );
+                            
+                            // Green text
+                            text::Text::new_color([0.0, 1.0, 0.0, 1.0], font_size)
+                                .draw(
+                                    &text,
+                                    &mut glyphs,
+                                    &c.draw_state,
+                                    c.transform.trans(box_x + padding, box_y + padding + font_size as f64 - 2.0),
+                                    g,
+                                )
+                                .ok();
+                        }
 
                         glyphs.factory.encoder.flush(device);
                     });
@@ -9909,5 +10095,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.1.99 Game loop ended.");
+    println!("sbrx0.2.0 Game loop ended.");
 }
