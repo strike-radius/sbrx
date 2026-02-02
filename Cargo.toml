@@ -1,9 +1,9 @@
 [package]
 name = "sbrx" 
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["IJB <strike_radius@protonmail.com>"]
-description = "2D ARPG"
+description = "2D isometric combo-focused hack and slash"
 license = "AGPL-3.0-or-later"
 
 [dependencies] 

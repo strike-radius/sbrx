@@ -96,7 +96,7 @@ impl CpuEntity {
             x: safe_gen_range(50.0, 1870.0, "CpuEntity x (GiantMantis)"),
             y: safe_gen_range(line_y, line_y + 400.0, "CpuEntity y (GiantMantis)"),
             speed: 150.0,
-            size: 10.0,
+            size: 100.0,
             facing_left: false,
             current_hp: 500.0,
             max_hp: 500.0,
@@ -127,7 +127,7 @@ impl CpuEntity {
             x,
             y,
             speed: 250.0,
-            size: 10.0,
+            size: 100.0,
             facing_left: false,
             current_hp: 2500.0,
             max_hp: 2500.0,
@@ -215,7 +215,7 @@ impl CpuEntity {
             x: safe_gen_range(50.0, 1870.0, "CpuEntity x (BloodIdol)"),
             y: safe_gen_range(line_y, line_y + 400.0, "CpuEntity y (BloodIdol)"),
             speed: 450.0,
-            size: 10.0,
+            size: 50.0,
             facing_left: false,
             current_hp: 750.0,
             max_hp: 750.0,
@@ -271,7 +271,7 @@ impl CpuEntity {
             x: safe_gen_range(50.0, 1870.0, "CpuEntity x (GiantRattlesnake)"),
             y: safe_gen_range(line_y, line_y + 400.0, "CpuEntity y (GiantRattlesnake)"),
             speed: 100.0,
-            size: 15.0, // Assuming slightly larger size, can be adjusted
+            size: 50.0, // Assuming slightly larger size, can be adjusted
             facing_left: false,
             current_hp: 650.0,
             max_hp: 650.0,
@@ -327,7 +327,7 @@ impl CpuEntity {
             x,
             y,
             speed: 350.0,
-            size: 20.0, // T-Rex is bigger
+            size: 100.0, // T-Rex is bigger
             facing_left: false,
             current_hp: 1500.0,
             max_hp: 1500.0,
@@ -357,7 +357,7 @@ impl CpuEntity {
             x: safe_gen_range(50.0, 1870.0, "CpuEntity x (VoidTempest)"),
             y: safe_gen_range(line_y, line_y + 400.0, "CpuEntity y (VoidTempest)"),
             speed: 450.0,
-            size: 10.0,
+            size: 100.0,
             facing_left: false,
             current_hp: 750.0,
             max_hp: 750.0,

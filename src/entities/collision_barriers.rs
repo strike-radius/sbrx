@@ -604,6 +604,14 @@ impl CollisionBarrierManager {
         manager
     }
 
+// 1 = launch
+// 2 = mid-air
+// 3 = landing
+// 
+// 0 = launch
+// 0 = mid-air
+// 0 = landing
+
     fn init_default_barriers(&mut self) {
         // Racetrack field (0, 0) with stepped barriers
         let racetrack0_barriers = FieldCollisionBarriers::from_ascii(

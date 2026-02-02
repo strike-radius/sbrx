@@ -3,6 +3,8 @@
 #[derive(Debug, Clone, Copy)]
 pub struct DefenseStats {
     pub hp: f64,
+	pub auto_block: f64,
+	pub auto_dodge: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -34,6 +36,8 @@ pub const SPEED_PER_SPEED_POINT: f64 = 50.0;
 pub const RACER_LVL1_STATS: Stats = Stats {
     defense: DefenseStats {
         hp: 3.0 * HP_PER_DEFENSE_POINT, // 120.0 HP
+        auto_block: 0.02,
+        auto_dodge: 0.02,		
     },
     attack: AttackStats {
         melee_damage: 1.0 * DAMAGE_PER_ATTACK_POINT, // 12.5 Damage
@@ -48,6 +52,8 @@ pub const RACER_LVL1_STATS: Stats = Stats {
 pub const SOLDIER_LVL1_STATS: Stats = Stats {
     defense: DefenseStats {
         hp: 5.0 * HP_PER_DEFENSE_POINT, // 200.0 HP
+        auto_block: 0.03,
+        auto_dodge: 0.01,		
     },
     attack: AttackStats {
         melee_damage: 3.0 * DAMAGE_PER_ATTACK_POINT, // 37.5 Damage
@@ -62,6 +68,8 @@ pub const SOLDIER_LVL1_STATS: Stats = Stats {
 pub const HUNTER_LVL1_STATS: Stats = Stats {
     defense: DefenseStats {
         hp: 1.0 * HP_PER_DEFENSE_POINT,
+        auto_block: 0.01,
+        auto_dodge: 0.03,
     },
     attack: AttackStats {
         melee_damage: 5.0 * DAMAGE_PER_ATTACK_POINT,

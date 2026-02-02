@@ -1,6 +1,6 @@
 [package]
 name = "firmament_lib"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["IJB <i4n_1@outlook.com>"]
 description = "fighterjet component to sbrx"

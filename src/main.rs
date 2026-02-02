@@ -667,7 +667,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.0 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.1 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -711,7 +711,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.0 Window created.");
+    println!("sbrx0.2.1 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1397,7 +1397,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.0 Starting game loop...");
+    println!("sbrx0.2.1 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1757,7 +1757,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.0 Playing state.");
+                    println!("Transitioning to sbrx0.2.1 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1779,7 +1779,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 0";
+                        let version_text = "v0 . 2 . 1";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -4141,12 +4141,52 @@ fn main() {
                                     &audio_manager,
                                 )
                             {
-                                if !block_system.process_attack(
+                                let mut attack_negated = block_system.process_attack(
                                     &mut fighter,
                                     cpu_entity,
                                     &audio_manager,
                                     game_time,
-                                ) {
+                                );
+
+                                // --- Passive Defense Check (Auto-Block / Auto-Dodge) ---
+                                // Condition: Attack wasn't manually blocked, player isn't invincible, and NOT vulnerable/broken
+                                if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken {
+                                    let mut rng = rand::rng();
+                                    let roll: f64 = rng.random();
+                                    
+                                    // Visual Priority: Only show passive anims if player isn't busy with inputs
+                                    let can_show_passive_anim = !is_high_priority_animation_active(
+                                        rush_active, strike_animation_timer, block_system.active, block_system.rmb_held
+                                    ) && !movement_active && !backpedal_active;
+
+                                    if roll < fighter.stats.defense.auto_dodge {
+                                        attack_negated = true;
+                                        audio_manager.play_sound_effect("boost").ok();
+                                        damage_texts.push(DamageText {
+                                            text: "DODGE".to_string(),
+                                            x: fighter.x, y: fighter.y - 90.0,
+                                            color: [0.0, 0.8, 1.0, 1.0], lifetime: 0.5,
+                                        });
+                                        if can_show_passive_anim {
+                                            current_racer_texture = current_backpedal_texture;
+                                            strike_animation_timer = 0.25
+                                        }
+                                    } else if roll < fighter.stats.defense.auto_dodge + fighter.stats.defense.auto_block {
+                                        attack_negated = true;
+                                        audio_manager.play_sound_effect("block").ok();
+                                        damage_texts.push(DamageText {
+                                            text: "BLOCK".to_string(),
+                                            x: fighter.x, y: fighter.y - 90.0,
+                                            color: [1.0, 1.0, 1.0, 1.0], lifetime: 0.5,
+                                        });
+                                        if can_show_passive_anim {
+                                            current_racer_texture = current_block_texture;
+                                            strike_animation_timer = 0.25
+                                        }
+                                    }
+                                }
+
+                                if !attack_negated {
                                     if cpu_entity.damage_display_cooldown <= 0.0 {
                                         if fighter.invincible_timer <= 0.0 {
                                             let damage_chunk = cpu_entity.damage_value;
@@ -10095,5 +10135,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.0 Game loop ended.");
+    println!("sbrx0.2.1 Game loop ended.");
 }
