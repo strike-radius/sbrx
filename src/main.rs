@@ -3531,18 +3531,27 @@ fn main() {
                                             if let Some(asset_to_spawn) =
                                                 ground_asset_manager.get_random_asset()
                                             {
+                                                let asset_x = safe_gen_range(MIN_X, MAX_X, "ground asset x");
+                                                let asset_y = safe_gen_range(line_y + 150.0, MAX_Y, "ground asset y");
+ 
+                                                // --- FLATLINE_field.x1y0 Raptor Nest Exclusion Zone ---
+                                                if current_field_id == SbrxFieldId(1, 0) {
+                                                    let center_x = 2500.0;
+                                                    let center_y = 1895.0;
+                                                    let half_w = 1415.0 / 2.0;
+                                                    let half_h = 500.0 / 2.0;
+ 
+                                                    // If asset spawns inside the raptor nest box, skip this iteration
+                                                    if asset_x >= center_x - half_w && asset_x <= center_x + half_w &&
+                                                       asset_y >= center_y - half_h && asset_y <= center_y + half_h {
+                                                        continue; 
+                                                    }
+                                                }												
+												
                                                 let new_asset = PlacedAsset {
                                                     texture_name: asset_to_spawn.name.to_string(),
-                                                    x: safe_gen_range(
-                                                        MIN_X,
-                                                        MAX_X,
-                                                        "ground asset x",
-                                                    ),
-                                                    y: safe_gen_range(
-                                                        line_y + 150.0,
-                                                        MAX_Y,
-                                                        "ground asset y",
-                                                    ),
+                                                    x: asset_x,
+                                                    y: asset_y,
                                                 };
                                                 assets_for_field.push(new_asset);
                                             }

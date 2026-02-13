@@ -1,7 +1,5 @@
 // raptor_nest.rs
 
-use crate::config::boundaries::{MAX_X, MAX_Y, MIN_X, MIN_Y};
-use crate::utils::math::safe_gen_range;
 use piston_window::*;
 
 pub struct RaptorNest {
@@ -13,8 +11,8 @@ impl RaptorNest {
     /// Creates a new RaptorNest at a random location within the game boundaries.
     pub fn new() -> Self {
         RaptorNest {
-            x: safe_gen_range(MIN_X, MAX_X, "RaptorNest x"),
-            y: safe_gen_range(MIN_Y, MAX_Y, "RaptorNest y"),
+            x: 2500.0,
+            y: 1895.0,
         }
     }
 
