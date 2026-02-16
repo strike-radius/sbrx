@@ -55,7 +55,7 @@ pub enum MovementDirection {
 pub enum FighterType {
     Racer,
     Soldier,
-    Hunter,
+    Raptor,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]

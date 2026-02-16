@@ -1,6 +1,6 @@
 //File: fighter.rs
 
-use crate::combat::stats::HUNTER_LVL1_STATS;
+use crate::combat::stats::RAPTOR_LVL1_STATS;
 use crate::combat::stats::{Stats, RACER_LVL1_STATS, SOLDIER_LVL1_STATS};
 use crate::config::boundaries::{MAX_X, MAX_Y, MIN_X, MIN_Y};
 use crate::game_state::{FighterType, RacerState};
@@ -53,22 +53,22 @@ impl Fighter {
         let mut fuel_tanks = HashMap::new();
         fuel_tanks.insert(FighterType::Racer, 100.0);
         fuel_tanks.insert(FighterType::Soldier, 100.0);
-        fuel_tanks.insert(FighterType::Hunter, 100.0);
+        fuel_tanks.insert(FighterType::Raptor, 100.0);
 
         let mut kill_counters = HashMap::new();
         kill_counters.insert(FighterType::Racer, 0);
         kill_counters.insert(FighterType::Soldier, 0);
-        kill_counters.insert(FighterType::Hunter, 0);
+        kill_counters.insert(FighterType::Raptor, 0);
 
         let mut levels = HashMap::new();
         levels.insert(FighterType::Racer, 1);
         levels.insert(FighterType::Soldier, 1);
-        levels.insert(FighterType::Hunter, 1);
+        levels.insert(FighterType::Raptor, 1);
 
         let mut stat_points_to_spend = HashMap::new();
         stat_points_to_spend.insert(FighterType::Racer, 0);
         stat_points_to_spend.insert(FighterType::Soldier, 0);
-        stat_points_to_spend.insert(FighterType::Hunter, 0);
+        stat_points_to_spend.insert(FighterType::Raptor, 0);
 
         Fighter {
             x,
@@ -114,7 +114,7 @@ impl Fighter {
         let (new_stats, new_radius) = match self.fighter_type {
             FighterType::Racer => (RACER_LVL1_STATS, 125.0),
             FighterType::Soldier => (SOLDIER_LVL1_STATS, 100.0),
-            FighterType::Hunter => (HUNTER_LVL1_STATS, 150.0),
+            FighterType::Raptor => (RAPTOR_LVL1_STATS, 150.0),
         };
 
         // Store the new stats object
@@ -129,15 +129,26 @@ impl Fighter {
 
         // Load new fighter's fuel
         self.fuel = *self.fuel_tanks.get(&self.fighter_type).unwrap_or(&100.0);
+
+        // Raptor is fuel-independent
+        if self.fighter_type == FighterType::Raptor {
+            self.fuel = 100.0;
+        }		
+		
         new_radius
     }
 
     // --- MODIFIED: Draws the fuel meter as a numerical percentage ---
     pub fn draw_fuel_meter(&self, original_context: Context, g: &mut G2d, glyphs: &mut Glyphs) {
+        // Don't draw fuel meter for Raptor
+        if self.fighter_type == crate::game_state::FighterType::Raptor {
+            return;
+        }		
+		
         // Calculate the fuel percentage
         let fuel_percentage = (self.fuel / self.max_fuel) * 100.0;
         // Format the text string, ensuring it doesn't go below 0.0
-        let fuel_text = format!("FUEL: {:.1}%", fuel_percentage.max(0.0));
+        let fuel_text = format!("FUEL: {:.0}%", fuel_percentage.max(0.0));
 
         let font_size = 20;
         let text_color = [1.0, 0.5, 0.0, 1.0]; // Orange color for fuel
@@ -179,7 +190,7 @@ impl Fighter {
         let fighter_type_text = match self.fighter_type {
             FighterType::Racer => format!("[RACER]{}", effective_level),
             FighterType::Soldier => format!("[SOLDIER]{}", effective_level),
-            FighterType::Hunter => format!("[HUNTER]{}", effective_level),
+            FighterType::Raptor => format!("[RAPTOR]{}", effective_level),
         };
 
         let def_text = format!("DEF: {}", def);

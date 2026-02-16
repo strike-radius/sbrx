@@ -35,10 +35,12 @@ impl Message {
     pub fn color(&self) -> [f32; 4] {
         match self.message_type {
             MessageType::Info => [1.0, 1.0, 1.0, 1.0],         // white
-            MessageType::Notification => [1.0, 0.2, 0.2, 1.0], // Red
-            MessageType::Dialogue => [1.0, 1.0, 0.2, 1.0],     // Yellow
+            MessageType::Notification => [1.0, 1.0, 0.2, 1.0],     // Yellow
+            MessageType::Dialogue => [0.0, 1.0, 0.0, 1.0], // Green
             MessageType::Warning => [1.0, 0.5, 0.0, 1.0], // Orange - Not used by new system, but good for completeness
 			MessageType::Stats => [0.0, 1.0, 0.0, 1.0], // Green
+			// [1.0, 0.2, 0.2, 1.0], // Red
+			
         }
     }
 }

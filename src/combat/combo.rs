@@ -258,8 +258,8 @@ impl ComboSystem {
 
         // Check if this fighter type can access the current timer state
         let can_use_current_state = match (fighter_type, self.state) {
-            (FighterType::Hunter, StrikeTimerState::Timer2) => false, // Hunter can't use 3-hit
-            (FighterType::Hunter, StrikeTimerState::Timer3) => false, // Hunter can't use 5-hit
+            (FighterType::Raptor, StrikeTimerState::Timer2) => false, // raptor can't use 3-hit
+            (FighterType::Raptor, StrikeTimerState::Timer3) => false, // raptor can't use 5-hit
             (FighterType::Soldier, StrikeTimerState::Timer3) => false, // Soldier can't use 5-hit
             _ => true, // All other combinations are allowed
         };
@@ -273,7 +273,7 @@ impl ComboSystem {
                 knockback_force: 1000.0,
                 apply_stun: false,
                 is_combo_finisher: false,
-                finisher_slash_count: if fighter_type == FighterType::Hunter {
+                finisher_slash_count: if fighter_type == FighterType::Raptor {
                     3
                 } else {
                     1
@@ -282,10 +282,10 @@ impl ComboSystem {
             });
         }
 
-        // Call regular handle_strike but modify result for Hunter
+        // Call regular handle_strike but modify result for raptor
         if let Some(mut result) = self.handle_strike() {
-            if fighter_type == FighterType::Hunter {
-                // Hunter always gets triple slash visual for basic and 2-hit combo strikes
+            if fighter_type == FighterType::Raptor {
+                // raptor always gets triple slash visual for basic and 2-hit combo strikes
                 if !result.is_combo_finisher || result.finisher_hit_count == 2 {
                     result.finisher_slash_count = 3;
                 }
@@ -334,8 +334,8 @@ impl ComboSystem {
         use crate::game_state::FighterType;
 
         self.state = match (self.state, fighter_type) {
-            (StrikeTimerState::Timer1, FighterType::Hunter) => {
-                // Hunter can only do 2-hit combos, so reset after Timer1
+            (StrikeTimerState::Timer1, FighterType::Raptor) => {
+                // raptor can only do 2-hit combos, so reset after Timer1
                 self.melee_cooldown = Self::POST_COMBO_3_COOLDOWN;
                 StrikeTimerState::Timer1
             }

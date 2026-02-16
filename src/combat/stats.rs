@@ -64,8 +64,8 @@ pub const SOLDIER_LVL1_STATS: Stats = Stats {
     },
 };
 
-// HUNTER: { defence: 1, attack, 5, speed: 3 }
-pub const HUNTER_LVL1_STATS: Stats = Stats {
+// raptor: { defence: 1, attack, 5, speed: 3 }
+pub const RAPTOR_LVL1_STATS: Stats = Stats {
     defense: DefenseStats {
         hp: 1.0 * HP_PER_DEFENSE_POINT,
         auto_block: 0.01,

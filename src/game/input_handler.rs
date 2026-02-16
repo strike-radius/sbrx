@@ -158,7 +158,7 @@ pub fn handle_space_key<'a>(
             let base_rush_distance = crate::config::movement::RUSH_DISTANCE;
             let rush_distance = match fighter.fighter_type {
                 FighterType::Racer => base_rush_distance,
-                FighterType::Hunter => base_rush_distance * 0.85,
+                FighterType::Raptor => base_rush_distance * 0.85,
                 FighterType::Soldier => base_rush_distance * 0.65,
             };
             let rush_end_x = (initial_x + norm_dx * rush_distance).clamp(0.0, 5000.0);

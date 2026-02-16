@@ -65,13 +65,13 @@ impl FieldTraitManager {
         // but if tied strictly to field coordinates, the Fort Silo trait covers the bunker entrance field.
         // If "Bunker [x]" implies distinct floors, current static definition applies to the whole field ID.		
 
-        // HUNTER Trait (Stored separately for dynamic application)
+        // raptor Trait (Stored separately for dynamic application)
         let wilderness_trait = FieldTrait {
             field_id: SbrxFieldId(9999, 9999), // Placeholder ID
             attribute: StatAttribute::Level,
             modifier: 1,
-            target: TraitTarget::Fighter(FighterType::Hunter),
-            description: "FIELD TRAIT:+[1] LVL to HUNTER".to_string(),
+            target: TraitTarget::Fighter(FighterType::Raptor),
+            description: "FIELD TRAIT:+[1] LVL to RAPTOR".to_string(),
         };
 
         Self { traits, wilderness_trait }
@@ -83,7 +83,7 @@ impl FieldTraitManager {
             .filter(|t| t.field_id == *field_id)
             .collect();
  
-        // Hunter Wilderness Logic
+        // raptor Wilderness Logic
         let specific_locations = [
             SbrxFieldId(0, 0),      // Racetrack
             SbrxFieldId(-2, 5),     // Rocketbay

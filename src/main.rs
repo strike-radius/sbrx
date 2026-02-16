@@ -63,7 +63,7 @@ use crate::combat::field_traits::{FieldTraitManager, StatAttribute, TraitTarget}
 use crate::combat::stats;
 use piston_window::Image;
 // NEW: Import stats constants for group UI
-use crate::combat::stats::{HUNTER_LVL1_STATS, RACER_LVL1_STATS, SOLDIER_LVL1_STATS};
+use crate::combat::stats::{RAPTOR_LVL1_STATS, RACER_LVL1_STATS, SOLDIER_LVL1_STATS};
 use crate::piston_window::MouseScrollEvent;
 use graphics::camera::{screen_to_world, Camera};
 use graphics::crater::draw_crater;
@@ -137,7 +137,7 @@ const BOUNDARY_WARNING_COOLDOWN_TIME: f64 = 3.0;
 const DEFAULT_FIGHTER_JET_WORLD_X: f64 = MIN_X + (MAX_X - MIN_X) / 2.0;
 const DEFAULT_FIGHTER_JET_WORLD_Y: f64 = MIN_Y + (MAX_Y - MIN_Y) / 4.0;
 const BIKE_ACCELERATE_FRAME_DURATION: f64 = 0.08;
-const HUNTER_INTERACTION_DISTANCE: f64 = 150.0;
+const RAPTOR_INTERACTION_DISTANCE: f64 = 150.0;
 const INFO_POST_INTERACTION_DISTANCE: f64 = 150.0;
 const SOLDIER_RAPID_FIRE_RATE: f64 = 0.09; // Match CPU entity attack rate
 const MELEE_RAPID_FIRE_RATE: f64 = 0.125; // Match CPU entity damage application rate
@@ -484,7 +484,7 @@ fn award_kill_score(
         let fighter_name = match fighter.fighter_type {
             FighterType::Racer => "RACER",
             FighterType::Soldier => "SOLDIER",
-            FighterType::Hunter => "HUNTER",
+            FighterType::Raptor => "RAPTOR",
         };
         chatbox.add_interaction(vec![(
             &format!(
@@ -667,7 +667,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.1 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.15 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -711,7 +711,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.1 Window created.");
+    println!("sbrx0.2.15 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -921,13 +921,13 @@ fn main() {
  	    &texture_settings,
  	    "remains",
  	);
-    let hunter_block_break_nest_texture_path =
-        sbrx_assets_path.join("player/hunter/block_break.png");
- 	let hunter_block_break_nest_texture = load_texture_or_exit(
+    let raptor_block_break_nest_texture_path =
+        sbrx_assets_path.join("player/raptor/block_break.png");
+ 	let raptor_block_break_nest_texture = load_texture_or_exit(
  	    &mut texture_context,
- 	    &hunter_block_break_nest_texture_path,
+ 	    &raptor_block_break_nest_texture_path,
  	    &texture_settings,
- 	    "hunter_block_break_nest",
+ 	    "raptor_block_break_nest",
  	);
 
     // --- NEW: Load ground textures ---
@@ -962,9 +962,9 @@ fn main() {
 	            eprintln!("Fatal error loading soldier textures: {}", e);
 	            std::process::exit(1);
 	        });
-	    let hunter_textures = load_fighter_textures(&mut window, "hunter", sbrx_assets_path.clone())
+	    let raptor_textures = load_fighter_textures(&mut window, "raptor", sbrx_assets_path.clone())
 	        .unwrap_or_else(|e| {
-	            eprintln!("Fatal error loading hunter textures: {}", e);
+	            eprintln!("Fatal error loading raptor textures: {}", e);
 	            std::process::exit(1);
 	        });
     let mut current_idle_texture = &racer_textures.idle;
@@ -1036,11 +1036,11 @@ fn main() {
     let mut group_icons: HashMap<FighterType, G2dTexture> = HashMap::new();
     let mut group_icons_selected: HashMap<FighterType, G2dTexture> = HashMap::new();
 
-    let fighter_types_for_assets = ["racer", "soldier", "hunter"];
+    let fighter_types_for_assets = ["racer", "soldier", "raptor"];
     let fighter_type_enums = [
         FighterType::Racer,
         FighterType::Soldier,
-        FighterType::Hunter,
+        FighterType::Raptor,
     ];
 
     for (i, name) in fighter_types_for_assets.iter().enumerate() {
@@ -1175,7 +1175,7 @@ fn main() {
     let mut fighter_stats_map: HashMap<FighterType, combat::stats::Stats> = HashMap::new();
     fighter_stats_map.insert(FighterType::Racer, combat::stats::RACER_LVL1_STATS);
     fighter_stats_map.insert(FighterType::Soldier, combat::stats::SOLDIER_LVL1_STATS);
-    fighter_stats_map.insert(FighterType::Hunter, combat::stats::HUNTER_LVL1_STATS);
+    fighter_stats_map.insert(FighterType::Raptor, combat::stats::RAPTOR_LVL1_STATS);
 
     let mut base_fighter_stats_map: HashMap<FighterType, combat::stats::Stats> =
         fighter_stats_map.clone();
@@ -1246,11 +1246,11 @@ fn main() {
     let soldier_interaction_distance = 100.0;
     let mut show_soldier_interaction_prompt = false;
     let mut soldier_has_joined = false;
-    let mut hunter_is_trapped_in_nest = false;
-    let mut show_hunter_interaction_prompt = false;
-    let mut hunter_has_joined = false;
-    let mut show_hunter_in_nest_graphic = false;
-	let mut show_racetrack_soldier_hunter_assets = true; // during racetrack_active 
+    let mut raptor_is_trapped_in_nest = false;
+    let mut show_raptor_interaction_prompt = false;
+    let mut raptor_has_joined = false;
+    let mut show_raptor_in_nest_graphic = false;
+	let mut show_racetrack_soldier_raptor_assets = true; // during racetrack_active 
     let mut t_rex_is_active = false;
     let info_post_position = (950.0, 750.0);
 
@@ -1366,20 +1366,20 @@ fn main() {
     let mut group_animation_timers: HashMap<FighterType, f64> = HashMap::new();
 
     // Field restriction system
-    let get_allowed_fields = |soldier_joined: bool, hunter_joined: bool| -> HashSet<SbrxFieldId> {
+    let get_allowed_fields = |soldier_joined: bool, raptor_joined: bool| -> HashSet<SbrxFieldId> {
         if !soldier_joined {
             // Only origin field allowed before soldier joins
             let mut fields = HashSet::new();
             fields.insert(SbrxFieldId(0, 0));
             fields
-        } else if !hunter_joined {
-            // Only origin and raptor nest fields allowed before hunter joins
+        } else if !raptor_joined {
+            // Only origin and raptor nest fields allowed before raptor joins
             let mut fields = HashSet::new();
             fields.insert(SbrxFieldId(0, 0));
             fields.insert(SbrxFieldId(1, 0));
             fields
         } else {
-            // All fields allowed after hunter joins
+            // All fields allowed after raptor joins
             HashSet::new() // Empty set means no restrictions
         }
     };
@@ -1397,7 +1397,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.1 Starting game loop...");
+    println!("sbrx0.2.15 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1522,12 +1522,12 @@ fn main() {
                 Key::LShift | Key::RShift => {
                     shift_held = true;
 					
-                    // Play boost.wav if HUNTER is active
+                    // Play boost.wav if raptor is active
                     if matches!(game_state, GameState::Playing) 
-                        && fighter.fighter_type == FighterType::Hunter
+                        && fighter.fighter_type == FighterType::Raptor
                     {
                         audio_manager.play_sound_effect("boost").unwrap_or_else(|_e| {
-                            //println!("[Audio] Failed to play boost sound for Hunter: {}", e);
+                            //println!("[Audio] Failed to play boost sound for raptor: {}", e);
                         });
                     }					
 					
@@ -1757,7 +1757,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.1 Playing state.");
+                    println!("Transitioning to sbrx0.2.15 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1779,7 +1779,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 1";
+                        let version_text = "v0 . 2 . 15";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1810,7 +1810,7 @@ fn main() {
                         let tex_set = match fighter.fighter_type {
                             FighterType::Racer => &racer_textures,
                             FighterType::Soldier => &soldier_textures,
-                            FighterType::Hunter => &hunter_textures,
+                            FighterType::Raptor => &raptor_textures,
                         };
                         update_current_textures(
                             &fighter,
@@ -1896,7 +1896,7 @@ fn main() {
                         let all_fighter_types = [
                             FighterType::Racer,
                             FighterType::Soldier,
-                            FighterType::Hunter,
+                            FighterType::Raptor,
                         ];
                         for ft in all_fighter_types.iter() {
                             let mut should_be_buffed = false;
@@ -2030,7 +2030,7 @@ fn main() {
 
                     chatbox.update(dt, enter_key_held);
 
-                    if shift_held && fighter.fighter_type != FighterType::Hunter {
+                    if shift_held && fighter.fighter_type != FighterType::Raptor {
                         if fighter.fighter_type == FighterType::Racer && fighter.boost {
                             // boost mode active, do not enter Ranged mode
                         } else {
@@ -2041,8 +2041,8 @@ fn main() {
                                 audio_manager.play_sound_effect("aim").ok();
                             }
 						}
-                    } else if shift_held && fighter.fighter_type == FighterType::Hunter {
-                        // Hunter Shift-Flight Logic (Toggle ON)
+                    } else if shift_held && fighter.fighter_type == FighterType::Raptor {
+                        // raptor Shift-Flight Logic (Toggle ON)
                         if fighter.state == RacerState::OnFoot
                             && !shift_override_active
                             && fighter.fuel > 0.0
@@ -2053,7 +2053,7 @@ fn main() {
                             shift_override_active = true;
 
                             // Update textures for flight mode
-                            let tex_set = &hunter_textures;
+                            let tex_set = &raptor_textures;
                             update_current_textures(
                                 &fighter,
                                 tex_set,
@@ -2080,13 +2080,13 @@ fn main() {
                         }
                     } else {
                         if shift_override_active {
-                            if fighter.fighter_type == FighterType::Hunter {
-                                // Hunter Shift-Flight Logic (Toggle OFF)
+                            if fighter.fighter_type == FighterType::Raptor {
+                                // raptor Shift-Flight Logic (Toggle OFF)
                                 if fighter.state == RacerState::OnBike {
                                     fighter.state = RacerState::OnFoot;
 
                                     // Update textures for foot mode
-                                    let tex_set = &hunter_textures;
+                                    let tex_set = &raptor_textures;
                                     update_current_textures(
                                         &fighter,
                                         tex_set,
@@ -2228,7 +2228,7 @@ fn main() {
                             }
                             chatbox.add_interaction(vec![(
                                 "ALL WAVES CLEARED. EXITS UNLOCKED.",
-                                MessageType::Info,
+                                MessageType::Notification,
                             )]);
                             // Check if all bunker waves have been cleared for the first time
                             if !bunker_waves_fully_completed {
@@ -2239,7 +2239,7 @@ fn main() {
                                     //println!("[WAVE SYSTEM] All bunker wave encounters completed for the first time. Lockdowns will now be disabled on future visits.");
                                     chatbox.add_interaction(vec![(
                                         "BUNKER SECURED. ALL FLOORS ACCESSIBLE.",
-                                        MessageType::Info,
+                                        MessageType::Notification,
                                     )]);
                                 }
                             }
@@ -2374,21 +2374,22 @@ fn main() {
                     );
 
                     if fighter.state == RacerState::OnBike && !is_paused {
-                        if fighter.fuel > 0.0 {
+                        // Only deplete fuel for RACER and SOLDIER
+                        if fighter.fighter_type != FighterType::Raptor && fighter.fuel > 0.0 {
                             fighter.fuel -= FUEL_DEPLETION_RATE * dt;
                         }
                         if fighter.fuel <= 0.0 {
                             fighter.fuel = 0.0;
                             println!("Fuel depleted! Forcing dismount.");
                             fighter.state = RacerState::OnFoot;
-                            // Only respawn a physical bike for non-Hunters
-                            if fighter.fighter_type != FighterType::Hunter {
+                            // Only respawn a physical bike for non-raptors
+                            if fighter.fighter_type != FighterType::Raptor {
                                 sbrx_bike.respawn(fighter.x, fighter.y);
                             }
                             let tex_set = match fighter.fighter_type {
                                 FighterType::Racer => &racer_textures,
                                 FighterType::Soldier => &soldier_textures,
-                                FighterType::Hunter => &hunter_textures,
+                                FighterType::Raptor => &raptor_textures,
                             };
                             update_current_textures(
                                 &fighter,
@@ -2471,7 +2472,7 @@ fn main() {
                         if fighter.state == RacerState::OnBike {
                             let bike_speed = match fighter.fighter_type {
                                 FighterType::Racer => BIKE_SPEED,
-                                FighterType::Hunter => BIKE_SPEED * 0.75,
+                                FighterType::Raptor => BIKE_SPEED * 0.75,
                                 FighterType::Soldier => BIKE_SPEED * 0.5,
                             };
                             // Apply speed reduction for combat actions AND blocking
@@ -2508,22 +2509,22 @@ fn main() {
                                 moved = true;
                             }
                             if !is_paused && !block_system.is_stun_locked() {
-                                // Hunter flight mode: prevent movement while blocking (same as OnFoot)
-                                let hunter_block_prevents_movement = 
-                                    fighter.fighter_type == FighterType::Hunter && block_system.active;								
+                                // raptor flight mode: prevent movement while blocking (same as OnFoot)
+                                let raptor_block_prevents_movement = 
+                                    fighter.fighter_type == FighterType::Raptor && block_system.active;								
 								
                                 let mut target_x = fighter.x;
                                 let mut target_y = fighter.y;
-                                if key_w_pressed && !hunter_block_prevents_movement {
+                                if key_w_pressed && !raptor_block_prevents_movement {
                                     target_y -= move_distance;
                                 }
-                                if key_s_pressed && !hunter_block_prevents_movement {
+                                if key_s_pressed && !raptor_block_prevents_movement {
                                     target_y += move_distance;
                                 }
-                                if key_a_pressed && !hunter_block_prevents_movement {
+                                if key_a_pressed && !raptor_block_prevents_movement {
                                     target_x -= move_distance;
                                 }
-                                if key_d_pressed && !hunter_block_prevents_movement {
+                                if key_d_pressed && !raptor_block_prevents_movement {
                                     target_x += move_distance;
                                 }
                                 fighter.x = target_x.clamp(current_min_x, current_max_x);
@@ -2560,7 +2561,7 @@ fn main() {
 											}
                                         },
                                         FighterType::Soldier => &soldier_textures.bike_accelerate,
-                                        FighterType::Hunter => &hunter_textures.bike_accelerate,
+                                        FighterType::Raptor => &raptor_textures.bike_accelerate,
                                     };
                                     if !anim_vec.is_empty() {
                                         bike_accelerate_anim_timer += dt;
@@ -2905,19 +2906,19 @@ fn main() {
                             show_soldier_interaction_prompt = true;
                         }
                     }
-                    show_hunter_interaction_prompt = false;
+                    show_raptor_interaction_prompt = false;
                     if let Some(area_state) = &current_area {
-                        // Only show hunter interaction in raptor nest, not in bunker
+                        // Only show raptor interaction in raptor nest, not in bunker
                         if area_state.area_type == AreaType::RaptorNest {
-                            if hunter_is_trapped_in_nest
+                            if raptor_is_trapped_in_nest
                                 && task_system.is_task_complete("CLEAR RAPTOR NEST: FIELD[X1 Y0]")
                             {
-                                let hunter_x = AREA_ORIGIN_X + (AREA_WIDTH / 2.0) + 50.0;
-                                let hunter_y = AREA_ORIGIN_Y + (AREA_HEIGHT / 2.0) - 30.0;
-                                let dx = fighter.x - hunter_x;
-                                let dy = fighter.y - hunter_y;
-                                if (dx * dx + dy * dy).sqrt() < HUNTER_INTERACTION_DISTANCE {
-                                    show_hunter_interaction_prompt = true;
+                                let raptor_x = AREA_ORIGIN_X + (AREA_WIDTH / 2.0) + 50.0;
+                                let raptor_y = AREA_ORIGIN_Y + (AREA_HEIGHT / 2.0) - 30.0;
+                                let dx = fighter.x - raptor_x;
+                                let dy = fighter.y - raptor_y;
+                                if (dx * dx + dy * dy).sqrt() < RAPTOR_INTERACTION_DISTANCE {
+                                    show_raptor_interaction_prompt = true;
                                 }
                             }
                         }
@@ -3121,7 +3122,7 @@ fn main() {
                                 || racetrack_active;
 
                             let allowed_fields =
-                                get_allowed_fields(soldier_has_joined, hunter_has_joined);
+                                get_allowed_fields(soldier_has_joined, raptor_has_joined);
                             let has_field_restrictions = !allowed_fields.is_empty();
 
                             let is_saucer_defeated = task_system.flying_saucer_defeated;
@@ -3296,7 +3297,8 @@ fn main() {
                                         fighter.y = config::boundaries::MIN_Y + 10.0;
                                         if boundary_warning_cooldown <= 0.0 {
                                             chatbox.add_interaction(vec![(
-                                            "A GRAVITATIONAL FORCE PREVENTS YOU FROM \nENTERING BY FOOT.",
+                                            "A GRAVITATIONAL FORCE PREVENTS YOU FROM 
+											ENTERING BY FOOT.",
                                             MessageType::Notification,
                                         )]);
                                             boundary_warning_cooldown =
@@ -3405,8 +3407,8 @@ fn main() {
                                                         FighterType::Soldier => {
                                                             SOLDIER_LVL1_STATS.defense.hp
                                                         }
-                                                        FighterType::Hunter => {
-                                                            HUNTER_LVL1_STATS.defense.hp
+                                                        FighterType::Raptor => {
+                                                            RAPTOR_LVL1_STATS.defense.hp
                                                         }
                                                     };
                                                     // Revive with 25% health to be consistent with kill-based revival
@@ -3419,7 +3421,7 @@ fn main() {
                                                         match fighter_to_revive {
                                                             FighterType::Racer => "RACER",
                                                             FighterType::Soldier => "SOLDIER",
-                                                            FighterType::Hunter => "HUNTER",
+                                                            FighterType::Raptor => "RAPTOR",
                                                         }
                                                     );
                                                     revival_messages.push(message);
@@ -3435,8 +3437,13 @@ fn main() {
                                             }
 
                                             chatbox.add_interaction(vec![
-										("-SOLDIER- \nIT'S TOO QUIET. BE ON YOUR GUARD.", MessageType::Dialogue), 
-										("-RACER- \nI SEE SOMEONE ON THE GROUND OVER THERE.", MessageType::Dialogue)]);
+												("THE RAPTOR GROWLS", MessageType::Notification),  
+												("-SOLDIER-", MessageType::Info), 
+												("IT'S TOO QUIET. BE ON YOUR GUARD.", MessageType::Dialogue), 
+												("-RACER-", MessageType::Info), 
+												("I SEE SOMEONE ON THE GROUND OVER THERE.", MessageType::Dialogue)
+											]);
+										
                                             rocketbay_dialogue_triggered = true;
 
                                             // Spawn survivors if not already spawned for this field
@@ -3722,14 +3729,14 @@ fn main() {
                                     println!("Dismounted by enemy skill damage!");
                                     fighter.state = RacerState::OnFoot;
 
-                                    if fighter.fighter_type != FighterType::Hunter {
+                                    if fighter.fighter_type != FighterType::Raptor {
                                         sbrx_bike.respawn(fighter.x, fighter.y);
                                     }
 
                                     let tex_set = match fighter.fighter_type {
                                         FighterType::Racer => &racer_textures,
                                         FighterType::Soldier => &soldier_textures,
-                                        FighterType::Hunter => &hunter_textures,
+                                        FighterType::Raptor => &raptor_textures,
                                     };
                                     update_current_textures(
                                         &fighter,
@@ -3747,10 +3754,6 @@ fn main() {
 										shift_held,
                                     );
                                     current_racer_texture = current_idle_texture;
-                                    chatbox.add_interaction(vec![(
-                                        "DISMOUNTED!",
-                                        MessageType::Notification,
-                                    )]);
                                 }
                             }
                         }
@@ -3835,7 +3838,7 @@ fn main() {
 
                                     if fighter.state == RacerState::OnBike {
                                         fighter.state = RacerState::OnFoot;
-                                        if fighter.fighter_type != FighterType::Hunter {
+                                        if fighter.fighter_type != FighterType::Raptor {
                                             sbrx_bike.respawn(fighter.x, fighter.y);
                                         }
                                     }
@@ -3847,8 +3850,8 @@ fn main() {
                                     if soldier_has_joined {
                                         group_members.push(FighterType::Soldier);
                                     }
-                                    if hunter_has_joined {
-                                        group_members.push(FighterType::Hunter);
+                                    if raptor_has_joined {
+                                        group_members.push(FighterType::Raptor);
                                     }
 
                                     let has_survivors = group_members.iter().any(|ft| {
@@ -3885,12 +3888,12 @@ fn main() {
                     let is_moving_on_bike_input =
                         key_w_pressed || key_s_pressed || key_a_pressed || key_d_pressed;
                     let is_stunned = block_system.is_stun_locked();
-                    let is_hunter_mounted =
-                        fighter.fighter_type == FighterType::Hunter && is_on_bike;
+                    let is_raptor_mounted =
+                        fighter.fighter_type == FighterType::Raptor && is_on_bike;
                     let should_play_bike_accelerate =
-                        is_on_bike && is_moving_on_bike_input && !is_stunned && !is_hunter_mounted;
+                        is_on_bike && is_moving_on_bike_input && !is_stunned && !is_raptor_mounted;
                     let should_play_bike_idle =
-                        is_on_bike && !is_moving_on_bike_input && !is_stunned && !is_hunter_mounted;
+                        is_on_bike && !is_moving_on_bike_input && !is_stunned && !is_raptor_mounted;
                     if should_play_bike_accelerate {
                         if bike_accelerate_sound_sink.is_none() {
                             if let Some(idle_sink) = bike_idle_sound_sink.take() {
@@ -4219,14 +4222,14 @@ fn main() {
                                                 println!("Dismounted by enemy damage!");
                                                 fighter.state = RacerState::OnFoot;
 
-                                                if fighter.fighter_type != FighterType::Hunter {
+                                                if fighter.fighter_type != FighterType::Raptor {
                                                     sbrx_bike.respawn(fighter.x, fighter.y);
                                                 }
 
                                                 let tex_set = match fighter.fighter_type {
                                                     FighterType::Racer => &racer_textures,
                                                     FighterType::Soldier => &soldier_textures,
-                                                    FighterType::Hunter => &hunter_textures,
+                                                    FighterType::Raptor => &raptor_textures,
                                                 };
                                                 update_current_textures(
                                                     &fighter,
@@ -4245,8 +4248,8 @@ fn main() {
                                                 );
                                                 current_racer_texture = current_idle_texture;
                                                 chatbox.add_interaction(vec![(
-                                                    "DISMOUNTED!",
-                                                    MessageType::Notification,
+                                                    "DISMOUNTED",
+                                                    MessageType::Warning,
                                                 )]);
                                             }
 
@@ -4288,7 +4291,7 @@ fn main() {
 
                                                 if fighter.state == RacerState::OnBike {
                                                     fighter.state = RacerState::OnFoot;
-                                                    if fighter.fighter_type != FighterType::Hunter {
+                                                    if fighter.fighter_type != FighterType::Raptor {
                                                         sbrx_bike.respawn(fighter.x, fighter.y);
                                                     }
                                                 }
@@ -4300,8 +4303,8 @@ fn main() {
                                                 if soldier_has_joined {
                                                     group_members.push(FighterType::Soldier);
                                                 }
-                                                if hunter_has_joined {
-                                                    group_members.push(FighterType::Hunter);
+                                                if raptor_has_joined {
+                                                    group_members.push(FighterType::Raptor);
                                                 }
 
                                                 let has_survivors =
@@ -4410,7 +4413,7 @@ fn main() {
                                         let fighter_name = match fighter.fighter_type {
                                             FighterType::Racer => "RACER",
                                             FighterType::Soldier => "SOLDIER",
-                                            FighterType::Hunter => "HUNTER",
+                                            FighterType::Raptor => "RAPTOR",
                                         };
                                         chatbox.add_interaction(vec![(
                                             &format!(
@@ -4490,8 +4493,8 @@ fn main() {
                                 if live_raptors == 0 {
                                     if !task_system.raptor_nest_cleared {
                                         task_system.mark_raptor_nest_cleared();
-                                        println!("All raptors in nest cleared for the first time! Hunter can be rescued.");
-                                        hunter_is_trapped_in_nest = true;
+                                        println!("All raptors in nest cleared for the first time! raptor can be rescued.");
+                                        raptor_is_trapped_in_nest = true;
                                     }
                                     println!(
                                         "Raptor Nest cleared. A T-Rex will be waiting outside."
@@ -4523,7 +4526,7 @@ fn main() {
                             let max_hp = match fighter_to_revive {
                                 FighterType::Racer => RACER_LVL1_STATS.defense.hp,
                                 FighterType::Soldier => SOLDIER_LVL1_STATS.defense.hp,
-                                FighterType::Hunter => HUNTER_LVL1_STATS.defense.hp,
+                                FighterType::Raptor => RAPTOR_LVL1_STATS.defense.hp,
                             };
 
                             // Revive with 25% health
@@ -4537,7 +4540,7 @@ fn main() {
                                     match fighter_to_revive {
                                         FighterType::Racer => "RACER",
                                         FighterType::Soldier => "SOLDIER",
-                                        FighterType::Hunter => "HUNTER",
+                                        FighterType::Raptor => "RAPTOR",
                                     }
                                 ),
                                 MessageType::Notification,
@@ -4553,7 +4556,7 @@ fn main() {
                             let tex_set = match fighter.fighter_type {
                                 FighterType::Racer => &racer_textures,
                                 FighterType::Soldier => &soldier_textures,
-                                FighterType::Hunter => &hunter_textures,
+                                FighterType::Raptor => &raptor_textures,
                             };
                             update_current_textures(
                                 &fighter,
@@ -4738,7 +4741,7 @@ fn main() {
  							fighter.state = RacerState::OnFoot;
  							sbrx_bike.is_crashed = true;
  
- 							if fighter.fighter_type != FighterType::Hunter {
+ 							if fighter.fighter_type != FighterType::Raptor {
  								sbrx_bike.visible = true;
  								sbrx_bike.x = fighter.x;
  								sbrx_bike.y = fighter.y;
@@ -4750,11 +4753,11 @@ fn main() {
  							let tex_set = match fighter.fighter_type {
  								FighterType::Racer => &racer_textures,
  								FighterType::Soldier => &soldier_textures,
- 								FighterType::Hunter => &hunter_textures,
+ 								FighterType::Raptor => &raptor_textures,
  							};
  							update_current_textures(&fighter, tex_set, &mut current_idle_texture, &mut current_fwd_texture, &mut current_backpedal_texture, &mut current_block_texture, &mut current_block_break_texture, &mut current_ranged_texture, &mut current_ranged_marker_texture, &mut current_ranged_blur_texture, &mut current_rush_texture, &mut current_strike_textures, shift_held);
  							current_racer_texture = current_block_break_texture;
- 							chatbox.add_interaction(vec![("HIT BARRIER!", MessageType::Notification)]);
+ 							chatbox.add_interaction(vec![("COLLISION", MessageType::Warning)]);
  						}
  
  						if fighter.current_hp <= 0.0 {
@@ -4763,7 +4766,7 @@ fn main() {
  							if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }
  							let mut group_members = vec![FighterType::Racer];
  							if soldier_has_joined { group_members.push(FighterType::Soldier); }
- 							if hunter_has_joined { group_members.push(FighterType::Hunter); }
+ 							if raptor_has_joined { group_members.push(FighterType::Raptor); }
  							let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
  
  							if group_members.len() > 1 && has_survivors {
@@ -4814,7 +4817,7 @@ fn main() {
 									sbrx_bike.is_crashed = true; // Swaps texture to crashed for all synced views
 
 									// Relocate and knockback vehicle ONLY for RACER or SOLDIER
-									if fighter.fighter_type != FighterType::Hunter {
+									if fighter.fighter_type != FighterType::Raptor {
 										sbrx_bike.visible = true;
 										sbrx_bike.x = fighter.x;
 										sbrx_bike.y = fighter.y;
@@ -4823,17 +4826,16 @@ fn main() {
 										sbrx_bike.knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
 										sbrx_bike.knockback_duration = 0.5;
 									} 
-									// If HUNTER, sbrx_bike stays at its last left location 
+									// If raptor, sbrx_bike stays at its last left location 
 									// but is_crashed flag (set above) ensures it renders as crashed.
 
 									let tex_set = match fighter.fighter_type {
 										FighterType::Racer => &racer_textures,
 										FighterType::Soldier => &soldier_textures,
-										FighterType::Hunter => &hunter_textures,
+										FighterType::Raptor => &raptor_textures,
 									};
 									update_current_textures(&fighter, tex_set, &mut current_idle_texture, &mut current_fwd_texture, &mut current_backpedal_texture, &mut current_block_texture, &mut current_block_break_texture, &mut current_ranged_texture, &mut current_ranged_marker_texture, &mut current_ranged_blur_texture, &mut current_rush_texture, &mut current_strike_textures, shift_held);
                                     current_racer_texture = current_block_break_texture; // Display crash animation immediately
-									chatbox.add_interaction(vec![("CRASHED!", MessageType::Notification)]);
 								}
 
 								if fighter.current_hp <= 0.0 {
@@ -4842,7 +4844,7 @@ fn main() {
 								    if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }									
 									let mut group_members = vec![FighterType::Racer];
 									if soldier_has_joined { group_members.push(FighterType::Soldier); }
-									if hunter_has_joined { group_members.push(FighterType::Hunter); }
+									if raptor_has_joined { group_members.push(FighterType::Raptor); }
 									let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
 
 									if group_members.len() > 1 && has_survivors {
@@ -4975,31 +4977,31 @@ fn main() {
                                 );
                             }
 
-                            // Only show hunter graphic in raptor nest
+                            // Only show raptor graphic in raptor nest
                             if area_state.area_type == AreaType::RaptorNest {
-                                if show_hunter_in_nest_graphic {
-                                    let hunter_texture_width =
-                                        hunter_block_break_nest_texture.get_width() as f64;
-                                    let hunter_texture_height =
-                                        hunter_block_break_nest_texture.get_height() as f64;
-                                    let hunter_x =
-                                        origin_x + (width - hunter_texture_width) / 2.0 + 50.0;
-                                    let hunter_y =
-                                        origin_y + (height - hunter_texture_height) / 2.0 - 30.0;
+                                if show_raptor_in_nest_graphic {
+                                    let raptor_texture_width =
+                                        raptor_block_break_nest_texture.get_width() as f64;
+                                    let raptor_texture_height =
+                                        raptor_block_break_nest_texture.get_height() as f64;
+                                    let raptor_x =
+                                        origin_x + (width - raptor_texture_width) / 2.0 + 50.0;
+                                    let raptor_y =
+                                        origin_y + (height - raptor_texture_height) / 2.0 - 30.0;
                                     image(
-                                        &hunter_block_break_nest_texture,
-                                        tc.transform.trans(hunter_x, hunter_y),
+                                        &raptor_block_break_nest_texture,
+                                        tc.transform.trans(raptor_x, raptor_y),
                                         g,
                                     );
-                                    if hunter_is_trapped_in_nest {
+                                    if raptor_is_trapped_in_nest {
                                         let indicator_text = "[!]";
                                         let font_size = 32;
                                         let text_color = [1.0, 0.0, 0.0, 1.0];
                                         let text_width =
                                             glyphs.width(font_size, indicator_text).unwrap_or(0.0);
-                                        let text_x = hunter_x + (hunter_texture_width / 2.0)
+                                        let text_x = raptor_x + (raptor_texture_width / 2.0)
                                             - (text_width / 2.0);
-                                        let text_y = hunter_y - 5.0;
+                                        let text_y = raptor_y - 5.0;
                                         text::Text::new_color(text_color, font_size)
                                             .draw(
                                                 indicator_text,
@@ -5263,7 +5265,7 @@ fn main() {
                                                                     let spec2_h = race_spectators2_texture.get_height() as f64;
                                                                     image(&race_spectators2_texture, tc.transform.trans(spec2_x - spec2_w / 2.0, spec2_y - spec2_h), g);
 
-                                                                    // --- Render Soldier and Hunter at Racetrack ---
+                                                                    // --- Render Soldier and raptor at Racetrack ---
                                                                     // Position the Soldier
                                                                     let soldier_x = 150.0;
                                                                     let soldier_y = 650.0;
@@ -5271,12 +5273,12 @@ fn main() {
                                                                     let soldier_h = soldier_textures.idle.get_height() as f64;
                                                                     image(&soldier_textures.idle, tc.transform.trans(soldier_x - soldier_w / 2.0, soldier_y - soldier_h), g);
 
-                                                                    // Position the Hunter
-                                                                    let hunter_x = 50.0;
-                                                                    let hunter_y = 700.0;
-                                                                    let hunter_w = hunter_textures.block_break.get_width() as f64;
-                                                                    let hunter_h = hunter_textures.block_break.get_height() as f64;
-                                                                    image(&hunter_textures.block_break, tc.transform.trans(hunter_x - hunter_w / 2.0, hunter_y - hunter_h), g);
+                                                                    // Position the raptor
+                                                                    let raptor_x = 50.0;
+                                                                    let raptor_y = 700.0;
+                                                                    let raptor_w = raptor_textures.block_break.get_width() as f64;
+                                                                    let raptor_h = raptor_textures.block_break.get_height() as f64;
+                                                                    image(&raptor_textures.block_break, tc.transform.trans(raptor_x - raptor_w / 2.0, raptor_y - raptor_h), g);
 
                                 */
                                 // TEMPORARY RACE SETUP ASSETS AT START
@@ -5320,8 +5322,8 @@ fn main() {
                                         g,
                                     );
 
-                                    // --- Render Soldier and Hunter at Racetrack ---
-                                    if show_racetrack_soldier_hunter_assets {
+                                    // --- Render Soldier and raptor at Racetrack ---
+                                    if show_racetrack_soldier_raptor_assets {
                                         // Position the Soldier
                                         let soldier_x = 300.0;
                                         let soldier_y = 650.0;
@@ -5336,16 +5338,16 @@ fn main() {
                                             g,
                                         );
  
-                                        // Position the Hunter
-                                        let hunter_x = 275.0;
-                                        let hunter_y = 700.0;
-                                        let hunter_w = hunter_textures.block_break.get_width() as f64;
-                                        let hunter_h = hunter_textures.block_break.get_height() as f64;
+                                        // Position the raptor on racetrack
+                                        let raptor_x = 275.0;
+                                        let raptor_y = 700.0;
+                                        let raptor_w = raptor_textures.idle.get_width() as f64;
+                                        let raptor_h = raptor_textures.idle.get_height() as f64;
                                         image(
-                                            &hunter_textures.block_break,
+                                            &raptor_textures.idle,
                                             tc.transform.trans(
-                                                hunter_x - hunter_w / 2.0,
-                                                hunter_y - hunter_h / 2.0,
+                                                raptor_x - raptor_w / 2.0,
+                                                raptor_y - raptor_h / 2.0,
                                             ),
                                             g,
                                         );
@@ -5583,7 +5585,7 @@ fn main() {
                                                     &soldier_textures.block_break
                                                 }
                                                 FighterType::Racer => &racer_textures.block_break,
-                                                FighterType::Hunter => &hunter_textures.block_break,
+                                                FighterType::Raptor => &raptor_textures.block_break,
                                             };
                                             let tex_w = texture.get_width() as f64;
                                             let tex_h = texture.get_height() as f64;
@@ -6118,14 +6120,14 @@ fn main() {
                         let fighter_types_in_group = [
                             FighterType::Racer,
                             FighterType::Soldier,
-                            FighterType::Hunter,
+                            FighterType::Raptor,
                         ];
 
                         for ft in &fighter_types_in_group {
                             let has_joined = match ft {
                                 FighterType::Racer => true,
                                 FighterType::Soldier => soldier_has_joined,
-                                FighterType::Hunter => hunter_has_joined,
+                                FighterType::Raptor => raptor_has_joined,
                             };
 
                             // BUG FIX 2: Check if fighter is downed
@@ -6171,8 +6173,8 @@ fn main() {
                                             SOLDIER_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
                                         ),
-                                        FighterType::Hunter => (
-                                            HUNTER_LVL1_STATS.defense.hp,
+                                        FighterType::Raptor => (
+                                            RAPTOR_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
                                         ),
                                     };
@@ -6197,7 +6199,7 @@ fn main() {
                                             let strike_tex = match ft {
                                                 FighterType::Racer => &racer_textures.strike[2], // strike3.png
                                                 FighterType::Soldier => &soldier_textures.strike[2],
-                                                FighterType::Hunter => &hunter_textures.strike[2],
+                                                FighterType::Raptor => &raptor_textures.strike[2],
                                             };
 
                                             let strike_w = strike_tex.get_width() as f64;
@@ -6268,10 +6270,13 @@ fn main() {
                             } else {
                                 [1.0, 1.0, 1.0, 0.8]
                             };
-                            let num_slashes = if combo_system.is_combo_strike_active() {
+                            let num_slashes = if block_system.is_kinetic_strike_active() && fighter.fighter_type == FighterType::Raptor {
+                                // RAPTOR kinetic strike uses triple slash visual
+                                3
+                            } else if combo_system.is_combo_strike_active() {
                                 combo_finisher_slash_count
-                            } else if rush_active && fighter.fighter_type == FighterType::Hunter {
-                                // HUNTER rush attack uses triple slash visual
+                            } else if rush_active && fighter.fighter_type == FighterType::Raptor {
+                                // raptor rush attack uses triple slash visual
                                 3
                             } else {
                                 1
@@ -6466,7 +6471,7 @@ fn main() {
                                 .ok();
                             }
                         }
-                        if show_hunter_interaction_prompt
+                        if show_raptor_interaction_prompt
                             || show_info_post_prompt
                             || show_survivor_interaction_prompt
                             || show_fort_silo_survivor_prompt
@@ -6498,7 +6503,7 @@ fn main() {
                         if show_fighter_jet_prompt {
                             let prompt_text1 = "[E] board FIGHTERJET";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let base_prompt_y = 100.0;
                             let text_x1 = (screen_width
                                 - glyphs.width(prompt_font_size, prompt_text1).unwrap_or(0.0))
@@ -6520,7 +6525,7 @@ fn main() {
                         if show_raptor_nest_prompt {
                             let prompt_text = "enter RAPTOR NEST [E]";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let text_width =
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
@@ -6542,7 +6547,7 @@ fn main() {
                             let prompt_text1 = "[1] ENTER";
                             let prompt_text2 = "[2] RESTART WAVES";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let text1_width =
                                 glyphs.width(prompt_font_size, prompt_text1).unwrap_or(0.0);
                             let text2_width =
@@ -6578,7 +6583,7 @@ fn main() {
                         if show_bunker_prompt {
                             let prompt_text = "enter BUNKER [E]";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let text_width =
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
@@ -6599,7 +6604,7 @@ fn main() {
                         if show_raptor_nest_exit_prompt {
                             let prompt_text = "EXIT [E]";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let text_width =
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
@@ -6620,7 +6625,7 @@ fn main() {
                         if show_bunker_exit_prompt {
                             let prompt_text = "EXIT [E]";
                             let prompt_font_size = 20;
-                            let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                            let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let text_width =
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
@@ -6645,7 +6650,7 @@ fn main() {
 									_ => "DESCEND [E]",
 								};
                                 let prompt_font_size = 20;
-                                let prompt_color = [1.0, 1.0, 0.0, 1.0];
+                                let prompt_color = [0.0, 1.0, 0.0, 1.0];
                                 let text_width =
                                     glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                                 let text_x = (screen_width - text_width) / 2.0;
@@ -6899,7 +6904,7 @@ fn main() {
                                     melee_rapid_fire_timer = MELEE_RAPID_FIRE_RATE;
                                 } else {
                                     // Ranged Attack
-                                    if fighter.fighter_type != FighterType::Hunter {
+                                    if fighter.fighter_type != FighterType::Raptor {
                                         if fighter.fighter_type == FighterType::Soldier {
                                             //lmb_held = true;
                                             soldier_rapid_fire_timer = 0.0;
@@ -6923,13 +6928,13 @@ fn main() {
 
                 if let Some(Button::Mouse(MouseButton::Right)) = e.press_args() {
                     if !block_system.is_stun_locked() && fighter.stun_timer <= 0.0 && !lmb_held && !fighter.is_reloading {
-					// Force Hunter out of flight mode when blocking
-					if fighter.fighter_type == FighterType::Hunter && fighter.state == RacerState::OnBike {
+					// Force raptor out of flight mode when blocking
+					if fighter.fighter_type == FighterType::Raptor && fighter.state == RacerState::OnBike {
 						fighter.state = RacerState::OnFoot;
 						shift_override_active = false;
 						
 						// Update textures for foot mode
-						let tex_set = &hunter_textures;
+						let tex_set = &raptor_textures;
 						update_current_textures(
 							&fighter,
 							tex_set,
@@ -6994,14 +6999,14 @@ fn main() {
                                     let fighter_name = match fighter.fighter_type {
                                         FighterType::Racer => "RACER",
                                         FighterType::Soldier => "SOLDIER",
-                                        FighterType::Hunter => "HUNTER",
+                                        FighterType::Raptor => "RAPTOR",
                                     };
                                     chatbox.add_interaction(vec![(
                                         &format!(
                                             "!! +[1] to DEF[Z] ATK[X] SPD[C] [{}] !!",
                                             fighter_name
                                         ),
-                                        MessageType::Notification,
+                                        MessageType::Dialogue,
                                     )]);
                                 }
                                 key_handled_by_lvl_up = true;
@@ -7032,14 +7037,14 @@ fn main() {
                                 let fighter_name = match fighter.fighter_type {
                                     FighterType::Racer => "RACER",
                                     FighterType::Soldier => "SOLDIER",
-                                    FighterType::Hunter => "HUNTER",
+                                    FighterType::Raptor => "RAPTOR",
                                 };
                                 chatbox.add_interaction(vec![(
                                     &format!(
                                         "!! CONFIRM: +1 {} [{}]  y/n !!",
                                         stat_name, fighter_name
                                     ),
-                                    MessageType::Notification,
+                                    MessageType::Dialogue,
                                 )]);
                                 lvl_up_state = LvlUpState::ConfirmingStat {
                                     stat_to_increase: stat_choice,
@@ -7153,14 +7158,14 @@ fn main() {
                                             let fighter_name_str = match fighter_type {
                                                 FighterType::Racer => "RACER",
                                                 FighterType::Soldier => "SOLDIER",
-                                                FighterType::Hunter => "HUNTER",
+                                                FighterType::Raptor => "RAPTOR",
                                             };
                                             chatbox.add_interaction(vec![(
                                                 &format!(
                                                     "!! +[1] to DEF[Z] ATK[X] SPD[C] [{}] !!",
                                                     fighter_name_str
                                                 ),
-                                                MessageType::Notification,
+                                                MessageType::Dialogue,
                                             )]);
                                         } else {
                                             lvl_up_state = LvlUpState::None;
@@ -7177,14 +7182,14 @@ fn main() {
                                     let fighter_name = match fighter.fighter_type {
                                         FighterType::Racer => "RACER",
                                         FighterType::Soldier => "SOLDIER",
-                                        FighterType::Hunter => "HUNTER",
+                                        FighterType::Raptor => "RAPTOR",
                                     };
                                     chatbox.add_interaction(vec![(
                                         &format!(
                                             "!! +[1] to DEF[Z] ATK[X] SPD[C] [{}] !!",
                                             fighter_name
                                         ),
-                                        MessageType::Notification,
+                                        MessageType::Dialogue,
                                     )]);
                                     key_handled_by_lvl_up = true;
                                 }
@@ -7326,7 +7331,7 @@ fn main() {
                                 if fighter.bike_boost_toggle_cooldown > 0.0 {
                                     chatbox.add_interaction(vec![(
                                         "TOGGLE COOLDOWN ACTIVE",
-                                        MessageType::Notification,
+                                        MessageType::Info,
                                     )]);
                                 } else {
                                     // Apply cooldown on successful toggle
@@ -7396,17 +7401,17 @@ fn main() {
                                         }
                                     }									
 									
-                                    if fighter.fighter_type == FighterType::Hunter {
+                                    if fighter.fighter_type == FighterType::Raptor {
                                         if current_area.is_none() {                     
-                                            if fighter.fuel > 0.0 {
+                                            if true {
                                                 if fighter.state == RacerState::OnFoot {
                                                     fighter.state = RacerState::OnBike;
 													audio_manager.play_sound_effect("boost").ok();
                                                 } else {
                                                     fighter.state = RacerState::OnFoot;
                                                 }
-                                                // Update textures for Hunter after state change
-                                                let tex_set = &hunter_textures;
+                                                // Update textures for raptor after state change
+                                                let tex_set = &raptor_textures;
                                                 update_current_textures(
                                                     &fighter,
                                                     tex_set,
@@ -7427,7 +7432,7 @@ fn main() {
                                         } else {
                                             chatbox.add_interaction(vec![(
                                                 "CAN ONLY TOGGLE OUTDOORS",
-                                                MessageType::Notification,
+                                                MessageType::Dialogue,
                                             )]);
                                         }
                                     } else {
@@ -7646,7 +7651,7 @@ fn main() {
                                         let base_rush_distance = crate::config::movement::RUSH_DISTANCE;
                                         let fighter_multiplier = match fighter.fighter_type {
                                             FighterType::Racer => 1.0,
-                                            FighterType::Hunter => 0.85,
+                                            FighterType::Raptor => 0.85,
                                             FighterType::Soldier => 0.65,
                                         };
                                         let rush_distance = base_rush_distance * fighter_multiplier * effectiveness_multiplier * KINETIC_RUSH_BASE_DISTANCE_MULTIPLIER;
@@ -7773,7 +7778,7 @@ fn main() {
                                             crate::config::movement::RUSH_DISTANCE;
                                         let rush_distance = match fighter.fighter_type {
                                             FighterType::Racer => base_rush_distance,
-                                            FighterType::Hunter => base_rush_distance * 0.85,
+                                            FighterType::Raptor => base_rush_distance * 0.85,
                                             FighterType::Soldier => base_rush_distance * 0.65,
                                         };
 
@@ -7914,7 +7919,7 @@ fn main() {
                                                 "!! [TAB] TO LVL UP [{}] +[{}] !!",
                                                 fighter_name, points_for_new_fighter
                                             ),
-                                            MessageType::Notification,
+                                            MessageType::Dialogue,
                                         )]);
                                     }
                                     // --- END FIX ---
@@ -7988,7 +7993,7 @@ fn main() {
                                                 "!! [TAB] TO LVL UP [{}] +[{}] !!",
                                                 fighter_name, points_for_new_fighter
                                             ),
-                                            MessageType::Notification,
+                                            MessageType::Dialogue,
                                         )]);
                                     }
                                     // --- END FIX ---
@@ -7996,40 +8001,40 @@ fn main() {
                             }
                             Key::F3 => {
                                 if !is_paused
-                                    && hunter_has_joined
+                                    && raptor_has_joined
                                     && !block_system.active
                                     && !block_system.rmb_held
-                                    && fighter.fighter_type != FighterType::Hunter
-                                    && !downed_fighters.contains(&FighterType::Hunter)
+                                    && fighter.fighter_type != FighterType::Raptor
+                                    && !downed_fighters.contains(&FighterType::Raptor)
                                     && fighter.state != RacerState::OnBike
                                 {
                                     fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                                     let new_radius =
-                                        fighter.switch_fighter_type(FighterType::Hunter);
+                                        fighter.switch_fighter_type(FighterType::Raptor);
                                     fixed_crater.radius = new_radius;
                                     fighter.stats =
 										fighter_stats_map
-											.get(&FighterType::Hunter)
+											.get(&FighterType::Raptor)
 											.copied()
-											.unwrap_or(combat::stats::HUNTER_LVL1_STATS);
+											.unwrap_or(combat::stats::RAPTOR_LVL1_STATS);
                                     fighter.max_hp = fighter.stats.defense.hp;
                                     fighter.melee_damage = fighter.stats.attack.melee_damage;
                                     fighter.ranged_damage = fighter.stats.attack.ranged_damage;
                                     fighter.run_speed = fighter.stats.speed.run_speed;
                                     fighter.current_hp = *fighter_hp_map
-                                        .entry(FighterType::Hunter)
+                                        .entry(FighterType::Raptor)
                                         .or_insert(fighter.max_hp);
-                                    // Reset combo stun state when switching to Hunter
+                                    // Reset combo stun state when switching to raptor
                                     combo_system.is_combo3_stun_disabled = false;
 
-                                    // Force Hunter to use Close Combat mode
+                                    // Force raptor to use Close Combat mode
                                     fighter.combat_mode = CombatMode::CloseCombat;
-                                    // chatbox.add_interaction(vec![("HUNTER COMBAT MODE: CLOSE COMBAT [LOCKED]", MessageType::Info)]);
+                                    // chatbox.add_interaction(vec![("raptor COMBAT MODE: CLOSE COMBAT [LOCKED]", MessageType::Info)]);
                                     shift_override_active = false;
 
                                     update_current_textures(
                                         &fighter,
-                                        &hunter_textures,
+                                        &raptor_textures,
                                         &mut current_idle_texture,
                                         &mut current_fwd_texture,
                                         &mut current_backpedal_texture,
@@ -8055,13 +8060,13 @@ fn main() {
                                         lvl_up_state = LvlUpState::PendingTab {
                                             fighter_type: fighter.fighter_type,
                                         };
-                                        let fighter_name = "HUNTER"; // We know it's Hunter here
+                                        let fighter_name = "RAPTOR"; 
                                         chatbox.add_interaction(vec![(
                                             &format!(
                                                 "!! [TAB] TO LVL UP [{}] +[{}] !!",
                                                 fighter_name, points_for_new_fighter
                                             ),
-                                            MessageType::Notification,
+                                            MessageType::Dialogue,
                                         )]);
                                     }
                                     // --- END FIX ---
@@ -8083,22 +8088,28 @@ fn main() {
                                                     match task_system.survivors_found {
                                                         0 => {
                                                             // First survivor
-                                                            chatbox.add_interaction(vec![("-SURVIVOR- \nTHE ROCKETBAY IS DONE FOR. HURRY, TAKE THIS \n[FIGHTERJET_PASSKEY]. IT WILL GIVE YOU \nACCESS TO THE ONE ON THE HANGAR ROOF. \nGET ANY SURVIRORS OVER TO FORT SILO.", MessageType::Dialogue), 
+                                                            chatbox.add_interaction(vec![
+															("-SURVIVOR-", MessageType::Info), 
+															("THE ROCKETBAY IS DONE FOR. HURRY, TAKE THIS 
+															FIGHTERJET PASSKEY. IT WILL GIVE YOU 
+															ACCESS TO THE ONE ON THE HANGAR ROOF. 
+															GET ANY SURVIRORS OVER TO FORT SILO.", MessageType::Dialogue),
+															
 															("SURVIVOR DIES", MessageType::Notification), 
-															("RECEIVED: \n[FIGHTERJET_PASSKEY]", MessageType::Info),
+															
+															("RECEIVED:", MessageType::Info), 
+															("[FIGHTERJET_PASSKEY]", MessageType::Dialogue),
 															]);
                                                         }
                                                         //    9 => {
                                                         // 10th survivor (0-indexed)
-                                                        //        chatbox.add_interaction(vec![("SURVIVOR: \nTHE ROCKETBAY IS DONE FOR. HURRY, \nTAKE THIS [fighter_jet_PASS_KEY] TO ENTER THE ONE \nON THE HANGAR ROOF. DELIVER THIS [URGENT_MESSAGE] TO \nTHE GRAND COMMANDER OVER AT FORT SILO.", MessageType::Dialogue), ("SURVIVOR DOESN'T MAKE IT", MessageType::Notification), ("RECEIVED [fighter_jet_PASS_KEY] AND [URGENT_MESSAGE]", MessageType::Info)]);
+                                                        //        chatbox.add_interaction(vec![("MessageType::Notification)]);
                                                         //    }
                                                         _ => {
                                                             // Survivors 2-9 (indices 1-8)
                                                             chatbox.add_interaction(vec![
-                                                                (
-                                                                    "-SURVIVOR- \nThank you..",
-                                                                    MessageType::Dialogue,
-                                                                ),
+																("-SURVIVOR-", MessageType::Info), 
+																("thanks..", MessageType::Dialogue), 
                                                                 (
                                                                     "SURVIVOR RETREATS TO THE FIGHTERJET.",
                                                                     MessageType::Notification,
@@ -8109,7 +8120,9 @@ fn main() {
 
                                                     task_system.survivors_found += 1;
                                                     if task_system.survivors_found >= 10 {
-                                                        chatbox.add_interaction(vec![("-SURVIVOR- \nLOOK OUT BEHIND YOU!", MessageType::Dialogue), 
+                                                        chatbox.add_interaction(vec![
+														("-SURVIVOR-", MessageType::Info), 
+														("LOOK OUT!", MessageType::Dialogue), 
 														("SURVIVOR GETS INCINERATED BY ELECTRICITY", MessageType::Notification), 
 														("A MALEVOLENT PRESENCE APPEARS", MessageType::Notification)
 														]);
@@ -8137,7 +8150,7 @@ fn main() {
                                                 FighterType::Soldier => {
                                                     SOLDIER_LVL1_STATS.defense.hp
                                                 }
-                                                FighterType::Hunter => HUNTER_LVL1_STATS.defense.hp,
+                                                FighterType::Raptor => RAPTOR_LVL1_STATS.defense.hp,
                                             };
                                             // Revive with 100% health for this major story event
                                             fighter_hp_map.insert(fighter_to_revive, max_hp);
@@ -8147,7 +8160,7 @@ fn main() {
                                                 match fighter_to_revive {
                                                     FighterType::Racer => "RACER",
                                                     FighterType::Soldier => "SOLDIER",
-                                                    FighterType::Hunter => "HUNTER",
+                                                    FighterType::Raptor => "RAPTOR",
                                                 }
                                             );
                                             revival_messages.push(message);
@@ -8161,19 +8174,38 @@ fn main() {
                                     }
 
                                     chatbox.add_interaction(vec![
-                                       ("-GRAND COMMANDER- \nSOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
-                                       ("-SOLDIER- \nWHAT THE HELL IS GOING ON?", MessageType::Dialogue),
-									   ("-GRAND COMMANDER- \nWE SENT UP A COMMUNICATION SIGNAL TO FIND 
-									   \n ALIEN LIFE. NOW WE'RE BEING EXTERMINATED 
-									   \nBY THEM.", MessageType::Dialogue),
-									   ("-HUNTER- \nWHAT CAN WE DO?", MessageType::Dialogue),
-									   ("-GRAND COMMANDER- \nLIBERATE THE SOUTHEAST MISSILE RANGE. 
-									   \nYOU'LL NEED TO FUEL UP THE FIGHTERJET 
-									   \nFOR SUCH A DISTANCE. UNFORTUNATELY, OUR 
-									   \nFUEL TANKS HAVE ALL BEEN DESTROYED.", MessageType::Dialogue),
-									   ("-RACER- \nWE CAN FUEL IT UP AT THE RACETRACK.", MessageType::Dialogue),
-									   ("-GRAND COMMANDER- \nGO AT ONCE. I WILL SEND YOU THE \nCOORDINATES ONCE YOU'RE READY.", MessageType::Dialogue),									  									  
-                                   ]);
+										("-GRAND COMMANDER-", MessageType::Info), 
+										("SOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
+
+										("-SOLDIER-", MessageType::Info), 
+										("WHAT THE HELL IS GOING ON?", MessageType::Dialogue),
+
+										("-GRAND COMMANDER-", MessageType::Info),  
+										("WE SENT UP A COMMUNICATION SIGNAL TO FIND 
+										ALIEN LIFE. NOW WE'RE BEING EXTERMINATED 
+										BY THEM.", MessageType::Dialogue),
+																	   
+										("-RACER-", MessageType::Info), 
+										("WHAT CAN WE DO?", MessageType::Dialogue),
+
+										("-GRAND COMMANDER-", MessageType::Info),  
+										("LIBERATE THE SOUTHEAST MISSILE RANGE. 
+										YOU'LL NEED TO FUEL UP THE FIGHTERJET 
+										FOR SUCH A DISTANCE. UNFORTUNATELY, OUR 
+										FUEL TANKS HAVE ALL BEEN DESTROYED.", MessageType::Dialogue),
+
+										("-RACER-", MessageType::Info), 
+										("WE CAN FUEL IT UP AT THE RACETRACK.", MessageType::Dialogue),
+
+										("-GRAND COMMANDER-", MessageType::Info), 
+										("GO AT ONCE. I WILL SEND YOU THE 
+										COORDINATES ONCE YOU'RE READY.", MessageType::Dialogue),	
+
+										("-RAPTOR-", MessageType::Info), 
+										("GRRAR!", MessageType::Dialogue),									   
+								  									  
+									]);
+								   
                                 } else if !is_paused && show_fort_silo_survivor_prompt {
                                     fort_silo_survivor.interaction_triggered = true;
                                     show_fort_silo_survivor_prompt = false; // Hide prompt immediately
@@ -8192,7 +8224,7 @@ fn main() {
                                                 FighterType::Soldier => {
                                                     SOLDIER_LVL1_STATS.defense.hp
                                                 }
-                                                FighterType::Hunter => HUNTER_LVL1_STATS.defense.hp,
+                                                FighterType::Raptor => RAPTOR_LVL1_STATS.defense.hp,
                                             };
                                             // Revive with 100% health for this story event
                                             fighter_hp_map.insert(fighter_to_revive, max_hp);
@@ -8202,7 +8234,7 @@ fn main() {
                                                 match fighter_to_revive {
                                                     FighterType::Racer => "RACER",
                                                     FighterType::Soldier => "SOLDIER",
-                                                    FighterType::Hunter => "HUNTER",
+                                                    FighterType::Raptor => "RAPTOR",
                                                 }
                                             );
                                             revival_messages.push(message);
@@ -8216,18 +8248,21 @@ fn main() {
                                     }
                                     // --- END REVIVAL LOGIC ---
 
-                                    chatbox.add_interaction(vec![("-SURVIVOR- \nIT SEEMS THE BARRIER HAS BEEN DEACTIVATED.
-									\nTHAT FLYING SUACER HAD US TRAPPED HERE
-									\nLIKE RATS IN A CAGE. IF YOU'RE LOOKING FOR 
-									\nTHE GRAND COMMANDER, CHECK THE BUNKER.", MessageType::Dialogue), 
-									("SURVIVOR DIES", MessageType::Notification),
+                                    chatbox.add_interaction(vec![
+										("-SURVIVOR-", MessageType::Info), 
+										("THE FIELD BARRIER DEACTIVATED AFTER YOU
+										SHOT DOWN THAT FLYING SUACER. WE'VE BEEN 
+										TRAPPED HERE. IF YOU'RE LOOKING FOR THE
+										THE GRAND COMMANDER, CHECK THE BUNKER.", MessageType::Dialogue), 
+										("SURVIVOR DIES", MessageType::Notification),
 									]);
-                                } else if !is_paused && show_hunter_interaction_prompt {
-                                    show_hunter_interaction_prompt = false;
+									
+                                } else if !is_paused && show_raptor_interaction_prompt {
+                                    show_raptor_interaction_prompt = false;
 
                                     // TASK: GROUP REVIVAL DIALOGUE POINT
                                     if !downed_fighters.is_empty() {
-                                        //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for Hunter interaction.");
+                                        //println!("[DIALOGUE REVIVAL] Reviving all downed fighters for raptor interaction.");
                                         let fighters_to_revive = downed_fighters.clone();
                                         downed_fighters.clear(); // Clear the list
                                         revival_kill_score = 0; // Reset counter
@@ -8240,7 +8275,7 @@ fn main() {
                                                 FighterType::Soldier => {
                                                     SOLDIER_LVL1_STATS.defense.hp
                                                 }
-                                                FighterType::Hunter => HUNTER_LVL1_STATS.defense.hp,
+                                                FighterType::Raptor => RAPTOR_LVL1_STATS.defense.hp,
                                             };
                                             // Revive with 25% health to be consistent with kill-based revival
                                             let revived_hp = max_hp * 0.25;
@@ -8251,7 +8286,7 @@ fn main() {
                                                 match fighter_to_revive {
                                                     FighterType::Racer => "RACER",
                                                     FighterType::Soldier => "SOLDIER",
-                                                    FighterType::Hunter => "HUNTER",
+                                                    FighterType::Raptor => "RAPTOR",
                                                 }
                                             );
                                             revival_messages.push(message);
@@ -8266,43 +8301,73 @@ fn main() {
                                         }
                                     }
 
-                                    hunter_has_joined = true;
+                                    raptor_has_joined = true;
                                     fighter_hp_map
-                                        .entry(FighterType::Hunter)
-                                        .or_insert(HUNTER_LVL1_STATS.defense.hp);
-                                    show_hunter_in_nest_graphic = false; // Hide hunter graphic on rescue
-                                    hunter_is_trapped_in_nest = false;
+                                        .entry(FighterType::Raptor)
+                                        .or_insert(RAPTOR_LVL1_STATS.defense.hp);
+                                    show_raptor_in_nest_graphic = false; // Hide raptor graphic on rescue
+                                    raptor_is_trapped_in_nest = false;
                                     task_system.populate_taskbar3();
                                     chatbox.add_interaction(vec![
-                                        ("-HUNTER- \nMANY THANKS. IF YOU SHOWED UP HALF A \nSECOND LATER, I'D BE IN PEICES.", MessageType::Dialogue),
-										("-SOLDIER- \nTHE WILDLIFE HAVE GONE BERSERK. JOIN US.", MessageType::Dialogue),
-										("-HUNTER- \nGLADLY. I'M A SHAPE SHIFTER SO DONT BE \nALARMED.", MessageType::Dialogue),
-                                        ("A T-REX ROARS OUTSIDE", MessageType::Notification),
-                                        ("-RACER- \nWHAT WAS THAT?", MessageType::Dialogue),
-                                        ("-HUNTER- \nI WAS BEING CHASED BY A T-REX BEFORE BEING \nAMBUSHED BY THESE RAPTORS.", MessageType::Dialogue),
-                                        ("-SOLDIER- \nMY BASECAMP ISN'T TOO FAR FROM HERE. LET'S \nTAKE THAT THING OUT AND THEN HEAD THAT WAY.", MessageType::Dialogue),
-                                        ("HUNTER HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Notification),
-										("HUNTER HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Warning),
+										("THE HURT RAPTOR LIFTS ITS HEAD AND 
+										LOOKS AT YOU.", MessageType::Notification),
+										
+										("-RAPTOR-", MessageType::Info), 
+										("Grh..", MessageType::Dialogue),										
+										
+										("-SOLDIER-", MessageType::Info), 
+										("LOOKS LIKE THIS ONE STRAYED FROM IT'S PACK.
+										TOO BAD WE COULDN'T SAVE THE OTHERS.", MessageType::Dialogue),
+										
+										("THE RAPTOR GETS UP AND STARTS TO FOLLOW YOU.", MessageType::Notification),										
+										
+										("-RACER-", MessageType::Info),  
+										("I THINK IT WANTS TO JOIN US.", MessageType::Dialogue),
+										
+                                        ("-SOLDIER-", MessageType::Info),  
+										("GOOD. BASECAMP IS JUST NORTHWEST FROM HERE.
+										LET'S START HEADING THAT WAY.", MessageType::Dialogue),
+										
+                                        ("RAPTOR HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Notification),
+										("RAPTOR HAS JOINED THE GROUP. KEY F3 TO SWITCH", MessageType::Warning),
                                     ]);
                                 } else if !is_paused && show_info_post_prompt {
                                     task_system.populate_taskbar1();
-                                    chatbox.add_interaction(vec![("DUE TO THE HOSTILE WILDLIFE, THE RACE \nIS POSTPONED. ANY RACERS THAT SHOW UP \nBEFORE ARE TO CLEAR THE TRACK OF ALL \nTHREATS. THANKS!", MessageType::Info)]);
+									
+                                    chatbox.add_interaction(vec![
+										("DUE TO THE HOSTILE WILDLIFE, THE RACE 
+										IS POSTPONED. ANY RACERS THAT SHOW UP 
+										BEFORE ARE TO CLEAR THE TRACK OF ALL 
+										THREATS. THANKS!", MessageType::Info)
+									]);
+									
                                     racetrack_info_post_interacted = true;
                                 } else if !is_paused && show_finale_info_post_prompt {
                                     chatbox.add_interaction(vec![
-									("THIS ENDS THE COMBAT DEMO \nNEXT UPDATES: ", MessageType::Info),
-									("RACING MODE \nITEM DROPS \nINVENTORY \nSKILLS \nSOUNDTRACK", MessageType::Notification),
+									("THIS ENDS THE COMBAT DEMO. 
+									FUTURE UPDATES: ", MessageType::Info),
+									("RACING MODE 
+									ITEM DROPS 
+									INVENTORY 
+									SKILLS 
+									PET SYSTEM
+									VENDORS", MessageType::Dialogue),
+									
 									("PROCEED TO THE STARTING LINE TO TRIGGER", MessageType::Info),
-									("ARENA MODE", MessageType::Notification),
+									("ARENA MODE", MessageType::Dialogue),
 									]);
                                     finale_info_post_interacted = true;
                                 } else if !is_paused && show_racetrack_soldier_prompt {
                                     racetrack_soldier_dialogue_triggered = true;
                                     chatbox.add_interaction(vec![
-										("-SOLDIER- \nIT'LL TAKE A WHILE FOR THE FIGHTERJET TO \nFUEL UP. GO ATTEND THE RACE WHILE WE WAIT.", MessageType::Dialogue),										
-										("HUNTER VOMITS", MessageType::Notification),
-										("-HUNTER- \nI CANT FLY IN THAT THING ANYMORE.", MessageType::Dialogue),
-										("-RACER- \nI'LL WIN US SOME PRIZE MONEY.", MessageType::Dialogue),
+										("-SOLDIER-", MessageType::Info), 
+										("IT'LL TAKE A WHILE FOR THE FIGHTERJET TO 
+										FUEL UP. GO ATTEND THE RACE WHILE WE WAIT.", MessageType::Dialogue),
+
+										("THE RAPTOR SNIFFS AROUND.", MessageType::Notification), 
+										
+										("-RACER-", MessageType::Info),  
+										("I'LL WIN US SOME PRIZE MONEY.", MessageType::Dialogue),
 									]);
                                 } else if !is_paused
                                     && show_soldier_interaction_prompt
@@ -8316,7 +8381,12 @@ fn main() {
                                     soldier_visible = false;
                                     task_system.populate_taskbar2();
                                     chatbox.add_interaction(vec![
-                                        ("-SOLDIER- \nRACER, MY SQUAD WAS AMBUSHED BY RAPTORS. \nSOME GOT DRAGGED AWAY TO A CAVE IN \nTHE FIELD JUST TO THE RIGHT. HELP ME UP \nAND LET'S GO SAVE THEM!", MessageType::Dialogue),
+                                        ("-SOLDIER-", MessageType::Info), 
+										("RACER, MY SQUAD WAS AMBUSHED BY RAPTORS. 
+										SOME GOT DRAGGED AWAY TO A CAVE IN 
+										THE FIELD JUST TO THE RIGHT. HELP ME UP 
+										AND LET'S GO SAVE THEM!", MessageType::Dialogue),
+										
                                         ("SOLDIER HAS JOINED THE GROUP", MessageType::Notification),
                                         ("KEY F1 AND F2 TO SWITCH FIGHTERS", MessageType::Notification),
 										("SOLDIER HAS JOINED THE GROUP KEY F1 AND F2 TO SWITCH FIGHTERS", MessageType::Warning),
@@ -8354,7 +8424,7 @@ fn main() {
                                         fighter.y = area_entrance_y;
                                         camera.x = fighter.x;
                                         camera.y = fighter.y;
-                                        show_hunter_in_nest_graphic = false;
+                                        show_raptor_in_nest_graphic = false;
 
                                         // Respawn appropriate enemies for the field when exiting area
                                         if exiting_area_type == AreaType::RaptorNest && CPU_ENABLED
@@ -8668,13 +8738,13 @@ fn main() {
                                         // Save entrance position before entering
                                         area_entrance_x = fighter.x;
                                         area_entrance_y = fighter.y;
-                                        // Set hunter as trapped when first entering nest (if not already joined)
-                                        if !hunter_has_joined {
-                                            hunter_is_trapped_in_nest = true;
+                                        // Set raptor as trapped when first entering nest (if not already joined)
+                                        if !raptor_has_joined {
+                                            raptor_is_trapped_in_nest = true;
                                         }
-                                        // Only show hunter graphic if hunter hasn't joined yet (first time rescue)
-                                        show_hunter_in_nest_graphic =
-                                            !hunter_has_joined && hunter_is_trapped_in_nest;
+                                        // Only show raptor graphic if raptor hasn't joined yet (first time rescue)
+                                        show_raptor_in_nest_graphic =
+                                            !raptor_has_joined && raptor_is_trapped_in_nest;
                                         let (new_area, player_start_pos) =
                                             AreaState::new(AreaType::RaptorNest, 1, false, false); // No waves in raptor nest
                                         current_area = Some(new_area);
@@ -8781,9 +8851,9 @@ fn main() {
                             // COMBAT MODES
                             /*
                                                         Key:: => { // toggle through combat modes
-                                                            if fighter.fighter_type == FighterType::Hunter {
+                                                            if fighter.fighter_type == FighterType::Raptor {
                                                                 chatbox.add_interaction(vec![(
-                                                                    "HUNTER MUST USE CLOSE COMBAT",
+                                                                    "raptor MUST USE CLOSE COMBAT",
                                                                     MessageType::Notification,
                                                                 )]);
                                                             } else {
@@ -8998,8 +9068,8 @@ fn main() {
                     fixed_crater.radius = 125.0;
 
                     if endless_arena_mode_active {
-                        // Deactivate SOLDIER and HUNTER field assets on first defeat
-                        show_racetrack_soldier_hunter_assets = false;
+                        // Deactivate SOLDIER and raptor field assets on first defeat
+                        show_racetrack_soldier_raptor_assets = false;
                         
                         if !soldier_has_joined {
                             soldier_has_joined = true;
@@ -9008,15 +9078,15 @@ fn main() {
                                 MessageType::Notification,
                             )]);
                         }
-                        if !hunter_has_joined {
-                            hunter_has_joined = true;
+                        if !raptor_has_joined {
+                            raptor_has_joined = true;
                             chatbox.add_interaction(vec![(
-                                "HUNTER REJOINS THE GROUP",
+                                "RAPTOR REJOINS THE GROUP",
                                 MessageType::Notification,
                             )]);
                         }
                         chatbox.add_interaction(vec![(
-                            "SOLDIER AND HUNTER REJOIN TO ASSIST",
+                            "SOLDIER AND RAPTOR REJOIN THE GROUP",
                             MessageType::Notification,
                         )]);
                     }
@@ -9035,8 +9105,8 @@ fn main() {
                         base_fighter_stats_map[&FighterType::Soldier].defense.hp,
                     );
                     fighter_hp_map.insert(
-                        FighterType::Hunter,
-                        base_fighter_stats_map[&FighterType::Hunter].defense.hp,
+                        FighterType::Raptor,
+                        base_fighter_stats_map[&FighterType::Raptor].defense.hp,
                     );
                     fighter.current_hp = fighter.max_hp;
 					
@@ -9075,7 +9145,7 @@ fn main() {
                         };
                         chatbox.add_interaction(vec![(
                             &format!("!! [TAB] TO LVL UP [RACER] +[{}] !!", points_for_racer),
-                            MessageType::Notification,
+                            MessageType::Dialogue,
                         )]);
                     }
                     // --- END FIX ---
@@ -9297,8 +9367,8 @@ fn main() {
                                 }
                             }
                             Key::D3 => {
-                                if hunter_has_joined {
-                                    desired_fighter = Some(FighterType::Hunter)
+                                if raptor_has_joined {
+                                    desired_fighter = Some(FighterType::Raptor)
                                 }
                             }
                             _ => {}
@@ -9322,7 +9392,7 @@ fn main() {
 									.unwrap_or_else(|| match target_fighter {
 										FighterType::Racer => combat::stats::RACER_LVL1_STATS,
 										FighterType::Soldier => combat::stats::SOLDIER_LVL1_STATS,
-										FighterType::Hunter => combat::stats::HUNTER_LVL1_STATS,
+										FighterType::Raptor => combat::stats::RAPTOR_LVL1_STATS,
 									});
                                 fighter.max_hp = fighter.stats.defense.hp;
                                 fighter.melee_damage = fighter.stats.attack.melee_damage;
@@ -9348,7 +9418,7 @@ fn main() {
                                     let fighter_name = match target_fighter {
                                         FighterType::Racer => "RACER",
                                         FighterType::Soldier => "SOLDIER",
-                                        FighterType::Hunter => "HUNTER",
+                                        FighterType::Raptor => "RAPTOR",
                                     };
                                     chatbox.add_interaction(vec![(
                                         &format!(
@@ -9361,7 +9431,7 @@ fn main() {
                                 // --- END FIX ---
 
                                 // Set combat mode based on fighter type
-                                if fighter.fighter_type == FighterType::Hunter {
+                                if fighter.fighter_type == FighterType::Raptor {
                                     fighter.combat_mode = CombatMode::CloseCombat;
                                 }
 
@@ -9371,7 +9441,7 @@ fn main() {
                                 let tex_set = match target_fighter {
                                     FighterType::Racer => &racer_textures,
                                     FighterType::Soldier => &soldier_textures,
-                                    FighterType::Hunter => &hunter_textures,
+                                    FighterType::Raptor => &raptor_textures,
                                 };
                                 update_current_textures(
                                     &fighter,
@@ -9429,7 +9499,7 @@ fn main() {
                         let downed_fighter_name = match downed_fighter_type {
                             FighterType::Racer => "RACER",
                             FighterType::Soldier => "SOLDIER",
-                            FighterType::Hunter => "HUNTER",
+                            FighterType::Raptor => "RAPTOR",
                         };
 
                         let death_message_text = match death_type {
@@ -9512,10 +9582,10 @@ fn main() {
                                 soldier_has_joined,
                             ),
                             (
-                                FighterType::Hunter,
-                                "HUNTER",
-                                HUNTER_LVL1_STATS.defense.hp,
-                                hunter_has_joined,
+                                FighterType::Raptor,
+                                "RAPTOR",
+                                RAPTOR_LVL1_STATS.defense.hp,
+                                raptor_has_joined,
                             ),
                         ];
 
@@ -9535,7 +9605,7 @@ fn main() {
                                 let key_num = match ft {
                                     FighterType::Racer => 1,
                                     FighterType::Soldier => 2,
-                                    FighterType::Hunter => 3,
+                                    FighterType::Raptor => 3,
                                 };
 
                                 let entry_text = format!("{} [{}]", name, key_num);
@@ -9719,14 +9789,14 @@ fn main() {
                         let fighter_types_in_group = [
                             FighterType::Racer,
                             FighterType::Soldier,
-                            FighterType::Hunter,
+                            FighterType::Raptor,
                         ];
 
                         for ft in &fighter_types_in_group {
                             let has_joined = match ft {
                                 FighterType::Racer => true,
                                 FighterType::Soldier => soldier_has_joined,
-                                FighterType::Hunter => hunter_has_joined,
+                                FighterType::Raptor => raptor_has_joined,
                             };
 
                             if has_joined && !downed_fighters.contains(ft) {
@@ -9771,8 +9841,8 @@ fn main() {
                                             SOLDIER_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
                                         ),
-                                        FighterType::Hunter => (
-                                            HUNTER_LVL1_STATS.defense.hp,
+                                        FighterType::Raptor => (
+                                            RAPTOR_LVL1_STATS.defense.hp,
                                             *fighter_hp_map.get(ft).unwrap_or(&0.0),
                                         ),
                                     };
@@ -9862,7 +9932,7 @@ fn main() {
                         let tex_set = match fighter.fighter_type {
                             FighterType::Racer => &racer_textures,
                             FighterType::Soldier => &soldier_textures,
-                            FighterType::Hunter => &hunter_textures,
+                            FighterType::Raptor => &raptor_textures,
                         };
                         update_current_textures(
                             &fighter,
@@ -9916,14 +9986,14 @@ fn main() {
 								println!("Revived Racer upon landing for finale.");
 							}
 
-                            // Task logic: Soldier and Hunter leave the group for the race (Handle inside closure now)
-                            if soldier_has_joined || hunter_has_joined {
-                                //println!("[FINALE] Landing on racetrack for finale. Soldier and Hunter will leave the group.");
+                            // Task logic: Soldier and raptor leave the group for the race (Handle inside closure now)
+                            if soldier_has_joined || raptor_has_joined {
+                                //println!("[FINALE] Landing on racetrack for finale. Soldier and raptor will leave the group.");
                                 soldier_has_joined = false;
-                                hunter_has_joined = false;
+                                raptor_has_joined = false;
  
                                 // Remove them from downed list if they are downed
-                                downed_fighters.retain(|&ft| ft != FighterType::Soldier && ft != FighterType::Hunter);
+                                downed_fighters.retain(|&ft| ft != FighterType::Soldier && ft != FighterType::Raptor);
                             }  							
                         }						
 
@@ -10144,5 +10214,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.1 Game loop ended.");
+    println!("sbrx0.2.15 Game loop ended.");
 }
