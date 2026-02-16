@@ -22,7 +22,7 @@ impl MapSystem {
         // Sky: black [0.0, 0.0, 0.0, 1.0]
         // Ground: mid-grey [0.5, 0.5, 0.5, 1.0] (this is the clear color)
         let origin_sky_color = [0.0, 0.0, 0.0, 1.0];
-        let origin_ground_color = [0.5, 0.5, 0.5, 1.0];
+        let origin_ground_color = [0.31, 0.31, 0.31, 1.0]; // Dark Gray
 
         let mut field_colors = HashMap::new();
         // Store origin field colors

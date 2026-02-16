@@ -5185,7 +5185,8 @@ fn main() {
 								
                                 // DEBUG: Draw collision barriers
                                 //#[cfg(debug_assertions)]
-                                if let Some(barriers) = collision_barrier_manager.get_barriers(&sbrx_map_system.current_field_id) {
+                                if true { // Temporarily disabled collision barrier visibility
+                                    let barriers = collision_barrier_manager.get_barriers(&sbrx_map_system.current_field_id).unwrap();
                                     for line in &barriers.lines {
                                         piston_window::line(
                                             [1.0, 0.0, 0.0, 0.5], // Semi-transparent red
