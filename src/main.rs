@@ -1391,7 +1391,7 @@ fn main() {
 	let mut track_notification: Option<TrackNotification> = None;
 
     let mut racetrack_active = false;
-	let mut show_collision_debug = 0; // 0: DISABLE ALL, 1: BARRIERS ONLY, 2: ALL
+	let mut show_collision_debug = 1; // 0: DISABLE ALL, 1: BARRIERS ONLY, 2: ALL
     let mut endless_arena_mode_active = false;
     let mut endless_arena_timer = 0.0;
     let mut endless_arena_stage = 1; // 1: initial, 2: all enemies, 3: buffs
@@ -5202,8 +5202,8 @@ fn main() {
                                             for zone in &barriers.jump_zones {
                                                 let color = match zone.zone_type {
                                                     JumpZoneType::Launch => [0.0, 1.0, 0.0, 0.3],  // Green
-                                                    JumpZoneType::Air => [0.5, 0.5, 0.5, 0.3],     // Gray
-                                                    JumpZoneType::Landing => [0.0, 0.5, 1.0, 0.3], // Blue
+                                                    JumpZoneType::Air => [0.0, 0.0, 0.0, 0.0],     // transparent
+                                                    JumpZoneType::Landing => [0.0, 0.0, 0.0, 0.0], // transparent
                                                 };
                                                 rectangle(
                                                     color,
@@ -5216,14 +5216,14 @@ fn main() {
                                             let chain_count = barriers.chain_zones.len();
                                             for chain in &barriers.chain_zones {
                                                let alpha = if chain.is_final {
-                                                   0.7  // Brightest for final
+                                                   0.0  // Brightest for final
                                                } else if chain_count > 1 {
                                                    // Gradient: first is dimmest, increases toward final
-                                                   0.2 + (chain.chain_index as f32 / chain_count as f32) * 0.4
+                                                   0.3 + (chain.chain_index as f32 / chain_count as f32) * 0.4
                                                } else {
                                                    0.3
                                                };
-                                               let color = [0.0, 1.0, 1.0, alpha];
+                                               let color = [0.0, 1.0, 0.0, alpha];
                                                rectangle(
                                                    color,
                                                    [chain.x, chain.y, chain.width, chain.height],
