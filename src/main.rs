@@ -1391,6 +1391,7 @@ fn main() {
 	let mut track_notification: Option<TrackNotification> = None;
 
     let mut racetrack_active = false;
+	let mut show_collision_debug = 0; // 0: DISABLE ALL, 1: BARRIERS ONLY, 2: ALL
     let mut endless_arena_mode_active = false;
     let mut endless_arena_timer = 0.0;
     let mut endless_arena_stage = 1; // 1: initial, 2: all enemies, 3: buffs
@@ -1541,7 +1542,7 @@ fn main() {
                         });
                     }
                 }
-                Key::M => {
+                Key::L => {
                     if is_paused {
                         // While paused, [M] cycles the same ambient track state as unpaused
                         // This affects the BGM that continues playing during pause
@@ -3630,7 +3631,7 @@ fn main() {
                                         config::boundaries::MAX_Y - 10.0,
                                     );
                                     chatbox.add_interaction(vec![(
-                                        "SOMEONE ON THE TRACK CALLS FOR HELP",
+                                        "SOMEONE NEAR THE TRACK CALLS FOR HELP",
                                         MessageType::Notification,
                                     )]);
                                     boundary_warning_cooldown = BOUNDARY_WARNING_COOLDOWN_TIME;
@@ -5183,62 +5184,65 @@ fn main() {
                             if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                 image(&track_texture, tc.transform.trans(track.x, track.y), g);
 								
-                                // DEBUG: Draw collision barriers
-                                //#[cfg(debug_assertions)]
-                                if true { // Temporarily disabled collision barrier visibility
-                                    let barriers = collision_barrier_manager.get_barriers(&sbrx_map_system.current_field_id).unwrap();
-                                    for line in &barriers.lines {
-                                        piston_window::line(
-                                            [1.0, 0.0, 0.0, 0.5], // Semi-transparent red
-                                            2.0,
-                                            [line.x1, line.y1, line.x2, line.y2],
-                                            tc.transform,
-                                            g,
-                                        );
+                                // TOGGLEABLE DEBUG: Draw collision barriers
+                                if show_collision_debug > 0 {
+                                    if let Some(barriers) = collision_barrier_manager.get_barriers(&sbrx_map_system.current_field_id) {
+                                        for line in &barriers.lines {
+                                            piston_window::line(
+                                                [1.0, 0.0, 0.0, 0.5], // Semi-transparent red
+                                                2.0,
+                                                [line.x1, line.y1, line.x2, line.y2],
+                                                tc.transform,
+                                                g,
+                                            );
+                                        }
+
+                                        if show_collision_debug == 2 {
+                                            // Draw jump zones by type
+                                            for zone in &barriers.jump_zones {
+                                                let color = match zone.zone_type {
+                                                    JumpZoneType::Launch => [0.0, 1.0, 0.0, 0.3],  // Green
+                                                    JumpZoneType::Air => [0.5, 0.5, 0.5, 0.3],     // Gray
+                                                    JumpZoneType::Landing => [0.0, 0.5, 1.0, 0.3], // Blue
+                                                };
+                                                rectangle(
+                                                    color,
+                                                    [zone.x, zone.y, zone.width, zone.height],
+                                                    tc.transform,
+                                                    g,
+                                                );
+                                            }
+                                            // Draw chain zones (cyan) - shade indicates order
+                                            let chain_count = barriers.chain_zones.len();
+                                            for chain in &barriers.chain_zones {
+                                               let alpha = if chain.is_final {
+                                                   0.7  // Brightest for final
+                                               } else if chain_count > 1 {
+                                                   // Gradient: first is dimmest, increases toward final
+                                                   0.2 + (chain.chain_index as f32 / chain_count as f32) * 0.4
+                                               } else {
+                                                   0.3
+                                               };
+                                               let color = [0.0, 1.0, 1.0, alpha];
+                                               rectangle(
+                                                   color,
+                                                   [chain.x, chain.y, chain.width, chain.height],
+                                                   tc.transform,
+                                                   g,
+                                               );
+                                            }								
+                                            // Draw rut zones (orange)
+                                            for rut in &barriers.rut_zones {
+                                                rectangle(
+                                                    [1.0, 0.5, 0.0, 0.3], // Semi-transparent orange
+                                                    [rut.x, rut.y, rut.width, rut.height],
+                                                    tc.transform,
+                                                    g,
+                                                );
+                                            }
+                                        }
                                     }
-                                    // Draw jump zones by type
-                                    for zone in &barriers.jump_zones {
-                                        let color = match zone.zone_type {
-                                            JumpZoneType::Launch => [0.0, 1.0, 0.0, 0.3],  // Green
-                                            JumpZoneType::Air => [0.5, 0.5, 0.5, 0.3],     // Gray
-                                            JumpZoneType::Landing => [0.0, 0.5, 1.0, 0.3], // Blue
-                                        };
-                                        rectangle(
-                                            color,
-                                            [zone.x, zone.y, zone.width, zone.height],
-                                            tc.transform,
-                                            g,
-                                        );
-                                    }
-									// Draw chain zones (cyan) - shade indicates order
-									let chain_count = barriers.chain_zones.len();
-									for chain in &barriers.chain_zones {
-									   let alpha = if chain.is_final {
-										   0.7  // Brightest for final
-									   } else if chain_count > 1 {
-										   // Gradient: first is dimmest, increases toward final
-										   0.2 + (chain.chain_index as f32 / chain_count as f32) * 0.4
-									   } else {
-										   0.3
-									   };
-									   let color = [0.0, 1.0, 1.0, alpha];
-									   rectangle(
-										   color,
-										   [chain.x, chain.y, chain.width, chain.height],
-										   tc.transform,
-										   g,
-									   );
-									}								
-                                    // Draw rut zones (orange)
-                                    for rut in &barriers.rut_zones {
-                                        rectangle(
-                                            [1.0, 0.5, 0.0, 0.3], // Semi-transparent orange
-                                            [rut.x, rut.y, rut.width, rut.height],
-                                            tc.transform,
-                                            g,
-                                        );
-                                    }									
-                                }								
+                                }	
 
                                 fuel_pump.draw(tc, g, &fuel_pump_texture);
 
@@ -7309,6 +7313,10 @@ fn main() {
                                 }
                             }
                         }
+						
+                        Key::F10 => show_collision_debug = 0, // DISABLE ALL
+                        Key::F11 => show_collision_debug = 1, // ENABLE COLLISION BARRIERS
+                        Key::F12 => show_collision_debug = 2, // ENABLE ALL					
                         Key::T => {
                             if task_system.active {
                                 task_system.open = !task_system.open;
@@ -7352,7 +7360,7 @@ fn main() {
 									
                                     let mode = if fighter.boost { "BOOST" } else { "RANGED" };
                                     chatbox.add_interaction(vec![(
-                                        &format!("[SHIFT] FOCUS: {}", mode),
+                                        &format!("[SHIFT] SET: {}", mode),
                                         MessageType::Stats,
                                     )]);
                                     // If switching to BOOST while AIM is active, force AIM off
