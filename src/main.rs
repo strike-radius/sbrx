@@ -413,9 +413,17 @@ fn handle_melee_strike<'a>(
 
                 if total_damage_this_cpu > 0.0 {
                     cpu.current_hp -= total_damage_this_cpu;
+					
+                    // Track that a hit connected during the T3 combo (strikes 1-4) for Racer
+                    if was_point_hit
+                        && result.finisher_hit_count < 5
+                        && fighter.fighter_type == FighterType::Racer
+                    {
+                        combo_system.racer_combo_hit_connected = true;
+                    }					
 
                     let text_color = if fighter.invincible_timer > 1.0 {
-                        [0.7, 1.0, 0.0, 1.0] // Cyan — ATOMIC-STATE active
+                        [0.7, 1.0, 0.0, 1.0] // yellow-green — ATOMIC-STATE active
                     } else if was_point_hit && result.is_combo_finisher {
                         [0.0, 1.0, 0.0, 1.0]
                     } else if was_point_hit {
@@ -476,6 +484,18 @@ fn handle_melee_strike<'a>(
                     }
                 }
             }
+            // Racer ATOMIC-STATE: grant if 5th strike fires and any of strikes 1-4 connected
+            if result.finisher_hit_count == 5
+                && fighter.fighter_type == FighterType::Racer
+                && combo_system.racer_combo_hit_connected
+                && fighter.invincible_timer <= 1.0
+            {
+                fighter.invincible_timer = 2.5;
+                chatbox.add_interaction(vec![
+                    ("ATOMIC-STATE", MessageType::Warning),
+                ]);
+                combo_system.racer_combo_hit_connected = false;
+            }			
         }
     }
 }
@@ -2551,6 +2571,11 @@ fn main() {
                             if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held {
                                 final_bike_speed *= 1.25 // 1.03; // Increase bike speed by 3%
                             }
+							
+                            // Apply 2.0x speed buff while ATOMIC-STATE is active (consistent with OnFoot)
+                            if fighter.invincible_timer > 1.0 {
+                                final_bike_speed *= 2.0;
+                            }							
 
                             // Apply Rut Zone speed reduction (50%) to Bike
                             if in_rut_zone {
@@ -3125,7 +3150,8 @@ fn main() {
                                 let boost_mult = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held { 1.5 } else { 1.0 };
 								let rut_mult = if in_rut_zone { 0.5 } else { 1.0 };
                                 let backpedal_mult = if !is_moving_forward { 0.5 } else { 1.0 };
-								let speed_mult = boost_mult * backpedal_mult * rut_mult;
+								let atomic_mult = if fighter.invincible_timer > 1.0 { 2.0 } else { 1.0 }; // 25% speed buff during ATOMIC-STATE
+								let speed_mult = boost_mult * backpedal_mult * rut_mult * atomic_mult;
                                 fighter.x += move_vec.x * fighter.run_speed * speed_mult * dt;
                                 fighter.y += move_vec.y * fighter.run_speed * speed_mult * dt;
                                 fighter.x = fighter.x.clamp(current_min_x, current_max_x);
@@ -6958,7 +6984,7 @@ fn main() {
 									
                                     // Soldier Reward: 1.5s Invincibility on Kinetic Strike
                                     if fighter.fighter_type == FighterType::Soldier {
-                                        fighter.invincible_timer = 2.5;
+                                        fighter.invincible_timer = 2.0;
                                         chatbox.add_interaction(vec![
                                             ("ATOMIC-STATE", MessageType::Warning),
                                         ]);
@@ -7818,7 +7844,7 @@ fn main() {
 											
                                             // Raptor Reward: 1.5s Invincibility on Kinetic Rush
                                             if fighter.fighter_type == FighterType::Raptor {
-                                                fighter.invincible_timer = 2.5;
+                                                fighter.invincible_timer = 1.5;
                                                 chatbox.add_interaction(vec![
                                                     ("ATOMIC-STATE", MessageType::Warning),
                                                 ]);

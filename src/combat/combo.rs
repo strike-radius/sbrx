@@ -25,6 +25,7 @@ pub struct ComboSystem {
     melee_cooldown: f64,          // After Timer3 combo
     pub is_in_rest_period: bool,  // Flag to check if we are waiting for the timer to run out
     pub is_combo3_stun_disabled: bool,
+	pub racer_combo_hit_connected: bool,
     // may need later
     //pub is_combo5_stun_disabled: bool,
 }
@@ -66,6 +67,7 @@ impl ComboSystem {
             melee_cooldown: 0.0,
             is_in_rest_period: false,
             is_combo3_stun_disabled: false,
+			racer_combo_hit_connected: false,
             // may need later
             //is_combo5_stun_disabled: false,
         }
@@ -92,6 +94,7 @@ impl ComboSystem {
         self.melee_cooldown = 0.0;
         self.is_in_rest_period = false;
         self.is_combo3_stun_disabled = false;
+		self.racer_combo_hit_connected = false;
     }
 
     pub fn update(&mut self, dt: f64) {
