@@ -404,8 +404,13 @@ impl BlockSystem {
                 let strike_dx = world_x - cpu.x;
                 let strike_dy = world_y - cpu.y;
                 if (strike_dx * strike_dx + strike_dy * strike_dy).sqrt() < strike_radius {
-                    let damage = fighter.melee_damage * effectiveness_multiplier; //kinetic_strike damage output
+                    let mut damage = fighter.melee_damage * effectiveness_multiplier;
                     let knockback_force = KINETIC_STRIKE_BASE_KNOCKBACK * effectiveness_multiplier;
+
+                    // 25% damage boost while ATOMIC-STATE is active
+                    if fighter.invincible_timer > 1.0 {
+                        damage *= 1.25;
+                    }
 
                     cpu.current_hp -= damage;
                     println!(
@@ -414,11 +419,16 @@ impl BlockSystem {
                     );
 
                     // Add damage text for kinetic strike
+                    let ks_dmg_color = if fighter.invincible_timer > 1.0 {
+                        [0.0, 0.9, 1.0, 1.0] // Cyan — ATOMIC-STATE active
+                    } else {
+                        [0.0, 1.0, 0.0, 1.0] // Green
+                    };
                     damage_texts.push(DamageText {
                         text: format!("{:.0}", damage),
                         x: cpu.x,
                         y: cpu.y - 50.0,
-                        color: [0.0, 1.0, 0.0, 1.0], // Green
+                        color: ks_dmg_color,
                         lifetime: 0.25,
                     });
 

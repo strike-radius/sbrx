@@ -340,7 +340,9 @@ impl Assets {
         if let Err(e) = load_texture("ufo") { debug_print(&format!("Warning: {}", e)); }
 		if let Err(e) = load_texture("rocketbay_air") { debug_print(&format!("Warning: {}", e)); }
         if let Err(e) = load_texture("racetrack0_air") { debug_print(&format!("Warning: {}", e)); }
+        if let Err(e) = load_texture("racetrack0_air2") { debug_print(&format!("Warning: {}", e)); }		
 		if let Err(e) = load_texture("fort_silo_air") { debug_print(&format!("Warning: {}", e)); }
+		if let Err(e) = load_texture("fort_silo_air2") { debug_print(&format!("Warning: {}", e)); }
 		if let Err(e) = load_texture("flying_saucer") { debug_print(&format!("Warning: {}", e)); }
 		if let Err(e) = load_texture("plasma_blast") { debug_print(&format!("Warning: {}", e)); }
 		if let Err(e) = load_texture("pulse_orb") { debug_print(&format!("Warning: {}", e)); }
@@ -1529,7 +1531,8 @@ impl Game {
                 piston_window::clear([0.0, 0.0, 0.05, 1.0], g);
             }
 		} else if self.map_system.current_field_id == map_system::FieldId3D(0, 0, 0) {
-           if let Some(bg_texture) = self.assets.get_texture("racetrack0_air") {
+            let tex_name = if self.fort_silo_landed { "racetrack0_air2" } else { "racetrack0_air" };
+            if let Some(bg_texture) = self.assets.get_texture(tex_name) {
                let transform = c.transform.scale(
                    WINDOW_WIDTH / bg_texture.get_width() as f64,
                    WINDOW_HEIGHT / bg_texture.get_height() as f64,
@@ -1541,7 +1544,8 @@ impl Game {
                piston_window::clear(bg_color, g);
            }
         } else if self.map_system.current_field_id == map_system::FieldId3D(-25, 25, 0) {
-            if let Some(bg_texture) = self.assets.get_texture("fort_silo_air") {
+            let tex_name = if self.fort_silo_landed { "fort_silo_air2" } else { "fort_silo_air" };
+            if let Some(bg_texture) = self.assets.get_texture(tex_name) {
                 let transform = c.transform.scale(
                    WINDOW_WIDTH / bg_texture.get_width() as f64,
                    WINDOW_HEIGHT / bg_texture.get_height() as f64,

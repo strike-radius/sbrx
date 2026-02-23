@@ -4,7 +4,10 @@
 pub const CPU_ENABLED: bool = true;
 
 /// Enables or disables the Fog of War system.
-pub const FOG_OF_WAR_ENABLED: bool = false;
+pub const FOG_OF_WAR_ENABLED: bool = false; 
+
+/// Directly initiates Arena Mode on program start when true
+pub const ARENA_MODE: bool = false; // false = campaign
 
 /// When enabled, reduces visual effects to improve performance || true = on || false = off
 pub const PERFORMANCE_MODE: bool = true;

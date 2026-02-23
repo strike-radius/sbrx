@@ -113,14 +113,24 @@ impl Shoot {
                     if fighter.fighter_type == crate::game_state::FighterType::Soldier {
                         damage *= 0.50; // 50% reduction means 25% of original damage
                     }
+					
+                    // 25% damage boost while ATOMIC-STATE is active
+                    if fighter.invincible_timer > 1.0 {
+                        damage *= 1.25;
+                    }					
 
                     cpu_entity.current_hp -= damage;
 
+                    let ranged_dmg_color = if fighter.invincible_timer > 1.0 {
+                        [0.7, 1.0, 0.0, 1.0] // Cyan — ATOMIC-STATE active
+                    } else {
+                        [1.0, 1.0, 1.0, 1.0] // White
+                    };
                     damage_texts.push(DamageText {
                         text: format!("{:.0}", damage),
                         x: cpu_entity.x,
                         y: cpu_entity.y - 50.0,
-                        color: [1.0, 1.0, 1.0, 1.0], // White
+                        color: ranged_dmg_color,
                         lifetime: 0.25,
                     });
 

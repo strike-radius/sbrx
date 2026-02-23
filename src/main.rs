@@ -298,6 +298,7 @@ fn handle_melee_strike<'a>(
     combo_system: &mut ComboSystem,
     strike: &mut Strike,
     audio_manager: &AudioManager,
+	chatbox: &mut ChatBox,
     current_strike_textures: &'a Vec<G2dTexture>,
     current_racer_texture: &mut &'a G2dTexture,
     strike_frame: &mut usize,
@@ -371,6 +372,10 @@ fn handle_melee_strike<'a>(
                     point_damage *= 0.25; // 90% reduction
                 }
             }
+            // 25% damage boost while ATOMIC-STATE is active
+            if fighter.invincible_timer > 1.0 {
+                point_damage *= 1.25;
+            }			
             let frontal_damage = point_damage / 2.0;
             let mut point_hit_applied = false;
 
@@ -409,7 +414,9 @@ fn handle_melee_strike<'a>(
                 if total_damage_this_cpu > 0.0 {
                     cpu.current_hp -= total_damage_this_cpu;
 
-                    let text_color = if was_point_hit && result.is_combo_finisher {
+                    let text_color = if fighter.invincible_timer > 1.0 {
+                        [0.7, 1.0, 0.0, 1.0] // Cyan — ATOMIC-STATE active
+                    } else if was_point_hit && result.is_combo_finisher {
                         [0.0, 1.0, 0.0, 1.0]
                     } else if was_point_hit {
                         [1.0, 1.0, 1.0, 1.0]
@@ -429,7 +436,17 @@ fn handle_melee_strike<'a>(
                         if was_point_hit {
                             if result.knockback {
                                 cpu.apply_knockback(wmx, wmy, result.knockback_force);
-                            }
+                            }	
+							
+							// Achievement: 5-Hit Combo Reward for RACER
+							// We check result.finisher_hit_count directly instead of result.apply_stun
+							if result.finisher_hit_count == 5 && fighter.fighter_type == FighterType::Racer {
+								fighter.invincible_timer = 2.5;
+								chatbox.add_interaction(vec![
+									("ATOMIC-STATE", MessageType::Warning),
+								]);
+							}							
+							
                             if result.apply_stun {
                                 if result.finisher_hit_count == 3 {
                                     cpu.stun_timer = 1.0;
@@ -442,6 +459,14 @@ fn handle_melee_strike<'a>(
                                     });
                                 } else if result.finisher_hit_count == 5 {
                                     cpu.stun_timer = 2.0;
+									
+									// Achievement: 5-Hit Combo Reward for RACER
+									if fighter.fighter_type == FighterType::Racer {
+										fighter.invincible_timer = 2.5;
+										chatbox.add_interaction(vec![
+											("ATOMIC-STATE", MessageType::Warning),
+										]);
+									}									
                                 }
                             }
                         } else if was_frontal_hit && result.is_combo_finisher {
@@ -667,7 +692,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.15 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.16 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -711,7 +736,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.15 Window created.");
+    println!("sbrx0.2.16 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -849,6 +874,12 @@ fn main() {
  	    &texture_settings,
  	    "flicker_strike_effect",
  	);
+	let atomic_state_texture = load_texture_or_exit(
+	    &mut texture_context,
+	    &sbrx_assets_path.join("effects/atomic_state.png"),
+	    &texture_settings,
+	    "atomic_state",
+	);	
 
  	let kinetic_strike_effect_texture1 = load_texture_or_exit(
  	    &mut texture_context,
@@ -899,6 +930,12 @@ fn main() {
  	    &texture_settings,
  	    "rocketbay",
  	);
+	let fort_silo2_texture = load_texture_or_exit(
+	    &mut texture_context,
+	    &sbrx_assets_path.join("fort_silo2.png"),
+	    &texture_settings,
+	    "fort_silo2",
+	);	
 	
     let info_post_texture_path = sbrx_assets_path.join("info_post.png");
  	let info_post_texture = load_texture_or_exit(
@@ -1390,15 +1427,26 @@ fn main() {
     let mut task_reward_notification: Option<TaskRewardNotification> = None;
 	let mut track_notification: Option<TrackNotification> = None;
 
-    let mut racetrack_active = false;
+    let mut racetrack_active = crate::config::ARENA_MODE;
+    if crate::config::ARENA_MODE {
+        println!("[CONFIG] Arena Mode pre-activated.");
+    }
+	
 	let mut show_collision_debug = 1; // 0: DISABLE ALL, 1: BARRIERS ONLY, 2: ALL
     let mut endless_arena_mode_active = false;
+	
+    if crate::config::ARENA_MODE {
+        endless_arena_mode_active = true;
+    }	
+	
+	let mut arena_kill_count = 0;
+	let mut last_arena_milestone = 0;
     let mut endless_arena_timer = 0.0;
     let mut endless_arena_stage = 1; // 1: initial, 2: all enemies, 3: buffs
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.15 Starting game loop...");
+    println!("sbrx0.2.16 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1749,6 +1797,13 @@ fn main() {
                     placed_ground_assets.clear();
 
                     task_system.active = true;
+					
+                    // Ensure config-based Arena Mode persists through start-press
+                    if crate::config::ARENA_MODE {
+                        racetrack_active = true;
+                        endless_arena_mode_active = true;
+                    }					
+					
                     last_field_id_for_rattlesnake_spawn = Some(sbrx_map_system.current_field_id);
                     spawned_giant_rattlesnake_scores.clear();
                     spawned_blood_idol_scores.clear();
@@ -1758,7 +1813,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.15 Playing state.");
+                    println!("Transitioning to sbrx0.2.16 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1780,7 +1835,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 15";
+                        let version_text = "v0 . 2 . 16";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1842,6 +1897,8 @@ fn main() {
                                 endless_arena_mode_active = true;
                                 endless_arena_timer = 0.0; // Reset timer on start
                                 endless_arena_stage = 1; // Reset stage
+								arena_kill_count = 0;    // Ensure score is 0
+								last_arena_milestone = 0; // Reset milestones to allow buffs to trigger again								
                                 task_system.mark_proceed_to_starting_line_complete();
                                 chatbox.add_interaction(vec![(
                                     "RACING MODE IN DEVELOPMENT. INITIATING ENDLESS ARENA MODE.",
@@ -2302,6 +2359,7 @@ fn main() {
                                         &mut combo_system,
                                         &mut strike,
                                         &audio_manager,
+										&mut chatbox,
                                         &current_strike_textures,
                                         &mut current_racer_texture,
                                         &mut strike_frame,
@@ -2740,6 +2798,8 @@ fn main() {
                                 endless_arena_mode_active = false;
                                 endless_arena_timer = 0.0;
                                 endless_arena_stage = 1;
+                                arena_kill_count = 0;
+                                last_arena_milestone = 0; // Reset milestone on field exit								
                                 //println!("[ARENA MODE] Player left the racetrack. Deactivating endless arena.");
                             }
                         }
@@ -2819,8 +2879,8 @@ fn main() {
                         continue;
                     }
 
-                    // Racetrack Soldier interaction check
-                    if racetrack_active && !racetrack_soldier_dialogue_triggered {
+                    // Racetrack Soldier interaction check (Disabled in Arena Mode)
+                    if !crate::config::ARENA_MODE && racetrack_active && !racetrack_soldier_dialogue_triggered {
                         let soldier_x = 300.0;
                         let soldier_y = 650.0;
                         let dx = fighter.x - soldier_x;
@@ -2925,7 +2985,8 @@ fn main() {
                         }
                     }
                     show_info_post_prompt = false;
-                    if !racetrack_active
+                    if !crate::config::ARENA_MODE 
+                        && !racetrack_active
                         && sbrx_map_system.current_field_id == SbrxFieldId(0, 0)
                         && !racetrack_info_post_interacted
                     {
@@ -3476,7 +3537,9 @@ fn main() {
                                     }
 
                                     // Spawn Light Reavers and Night Reavers when entering Fort Silo field via field transition
-                                    if sbrx_map_system.current_field_id == SbrxFieldId(-25, 25) {
+									if sbrx_map_system.current_field_id == SbrxFieldId(-25, 25) 
+										&& !task_system.is_task_complete("SPEAK TO THE GRAND COMMANDER") 
+									{
                                         let has_light_reavers = cpu_entities
                                             .iter()
                                             .any(|e| e.variant == CpuVariant::LightReaver);
@@ -3667,6 +3730,7 @@ fn main() {
                     }
                     if current_area.is_none()
                         && sbrx_map_system.current_field_id == SbrxFieldId(-25, 25)
+                        && !task_system.is_task_complete("SPEAK TO THE GRAND COMMANDER")
                     {
                         let has_light_reavers = cpu_entities
                             .iter()
@@ -4374,7 +4438,7 @@ fn main() {
                                     if wave_manager.is_active() {
                                         wave_manager.notify_enemy_defeated();
                                     }
-                                    task_system.increment_kill_count(cpu_entity.variant);
+                                    task_system.increment_kill_count(cpu_entity.variant);																
 									
                                     let score_value = match cpu_entity.variant {
                                         CpuVariant::GiantMantis => 3,
@@ -4388,6 +4452,28 @@ fn main() {
                                         CpuVariant::NightReaver => 2,
                                         CpuVariant::RazorFiend => 10,
                                     };
+									
+                                    if endless_arena_mode_active {
+                                        arena_kill_count += score_value; 
+                                        // Milestones for every 25 points
+                                        let current_milestone = arena_kill_count / 25;
+                                        if current_milestone > last_arena_milestone && current_milestone > 0 {
+                                            last_arena_milestone = current_milestone;
+                                                                                       
+                                            let damage_bonus = 1.25;
+                                            fighter.melee_damage = fighter.stats.attack.melee_damage + damage_bonus;
+                                            fighter.ranged_damage = fighter.stats.attack.ranged_damage + damage_bonus;
+											//fighter.run_speed *= 1.25;
+                                            
+                                            // Grant 3 seconds of invincibility
+                                            fighter.invincible_timer = 5.0;
+ 
+                                            chatbox.add_interaction(vec![
+                                                (&format!("KILL BONUS: ATOMIC-STATE"), MessageType::Warning),
+                                            ]);
+                                            audio_manager.play_sound_effect("boost").ok();
+                                        }										
+                                    }									
                                     
                                     fighter.score = (fighter.score + score_value).min(999);
 
@@ -4737,6 +4823,10 @@ fn main() {
  							let force = 800.0;
  							fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
  							fighter.knockback_duration = 0.4;
+							
+							// BUG FIX: Deactivate rapid-fire melee state on crash
+							lmb_held = false;
+							melee_rapid_fire_timer = 0.0;							
  						
  							// Dismount
  							fighter.state = RacerState::OnFoot;
@@ -4812,6 +4902,10 @@ fn main() {
 									let force = 800.0;
 									fighter.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
 									fighter.knockback_duration = 0.4;
+									
+									// BUG FIX: Deactivate rapid-fire melee state on crash
+									lmb_held = false;
+									melee_rapid_fire_timer = 0.0;										
 								
 									// Dismount
 									fighter.state = RacerState::OnFoot;
@@ -5379,34 +5473,43 @@ fn main() {
                                     }
                                 }
 
-                                let info_post_w = info_post_texture.get_width() as f64;
-                                let info_post_h = info_post_texture.get_height() as f64;
-                                let img_x = info_post_position.0 - info_post_w / 2.0;
-                                let img_y = info_post_position.1 - info_post_h / 2.0;
-                                image(&info_post_texture, tc.transform.trans(img_x, img_y), g);
-                                if (!racetrack_active && !racetrack_info_post_interacted)
-                                    || (racetrack_active && !finale_info_post_interacted)
-                                {
-                                    let indicator_text = "[!]";
-                                    let font_size = 32;
-                                    let text_color = [1.0, 0.0, 0.0, 1.0];
-                                    let text_width =
-                                        glyphs.width(font_size, indicator_text).unwrap_or(0.0);
-                                    let text_x = info_post_position.0 - text_width / 2.0;
-                                    let text_y = img_y - 5.0;
-                                    text::Text::new_color(text_color, font_size)
-                                        .draw(
-                                            indicator_text,
-                                            &mut glyphs,
-                                            &tc.draw_state,
-                                            tc.transform.trans(text_x, text_y),
-                                            g,
-                                        )
-                                        .ok();
-                                }
+                                // Hide Info Post and its prompt in Arena Mode
+                                if !crate::config::ARENA_MODE {
+                                    let info_post_w = info_post_texture.get_width() as f64;
+                                    let info_post_h = info_post_texture.get_height() as f64;
+                                    let img_x = info_post_position.0 - info_post_w / 2.0;
+                                    let img_y = info_post_position.1 - info_post_h / 2.0;
+                                    image(&info_post_texture, tc.transform.trans(img_x, img_y), g);
+
+                                    if (!racetrack_active && !racetrack_info_post_interacted)
+                                        || (racetrack_active && !finale_info_post_interacted)
+                                    {
+                                        let indicator_text = "[!]";
+                                        let font_size = 32;
+                                        let text_color = [1.0, 0.0, 0.0, 1.0];
+                                        let text_width =
+                                            glyphs.width(font_size, indicator_text).unwrap_or(0.0);
+                                        let text_x = info_post_position.0 - text_width / 2.0;
+                                        let text_y = img_y - 5.0;
+                                        text::Text::new_color(text_color, font_size)
+                                            .draw(
+                                                indicator_text,
+                                                &mut glyphs,
+                                                &tc.draw_state,
+                                                tc.transform.trans(text_x, text_y),
+                                                g,
+                                            )
+                                            .ok();
+                                     }
+                                 }
                             }
                             if sbrx_map_system.current_field_id == SbrxFieldId(-25, 25) {
-                                image(&fort_silo_texture, tc.transform.trans(track.x, track.y), g);
+                                let fs_tex = if task_system.is_task_complete("SPEAK TO THE GRAND COMMANDER") {
+                                    &fort_silo2_texture
+                                } else {
+                                    &fort_silo_texture
+                                };
+                                image(fs_tex, tc.transform.trans(track.x, track.y), g);
 
                                 // Draw survivor if not interacted with yet
                                 if !fort_silo_survivor.interaction_triggered {
@@ -5457,7 +5560,7 @@ fn main() {
                                         .ok();
                                 }
                             }
-                            if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                            if !crate::config::ARENA_MODE && sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                 if !FOG_OF_WAR_ENABLED
                                     || fog_of_war.should_render_entity(
                                         sbrx_map_system.current_field_id,
@@ -5876,6 +5979,21 @@ fn main() {
                             let sh = current_racer_texture.get_height() as f64;
                             let idx = fighter.x - sw / 2.0;
                             let idy = fighter.y - sh / 2.0;
+							
+                            // Display Atomic State visual beneath player if Invincible 
+                            // Logic: Prevent during stun recovery (stun_timer/knockback) and block-break.
+                            // Added check: Only show if timer > 1.0s to prevent showing during the 1s post-collision penalty.
+                            if fighter.invincible_timer > 1.0 
+                                && fighter.stun_timer <= 0.0 
+                                && fighter.knockback_duration <= 0.0 
+                                && !block_system.is_stun_locked() 
+                            {
+                                let tex_w = atomic_state_texture.get_width() as f64;
+                                let tex_h = atomic_state_texture.get_height() as f64;
+                                // Center the effect on the player's position
+                                image(&atomic_state_texture, tc.transform.trans(fighter.x - tex_w / 2.0, fighter.y - tex_h / 2.0), g);
+                            }							
+							
                             let mut dtf = tc.transform.trans(idx, idy);
                             if flip {
                                 dtf = tc.transform.trans(idx + sw, idy).scale(-1.0, 1.0);
@@ -6049,12 +6167,16 @@ fn main() {
                                 "ARENA TIME: {:02}:{:02} . {:02}",
                                 minutes, seconds, centiseconds
                             );
+							let kills_text = format!("ARENA SCORE: {:04}", arena_kill_count);
 
                             let font_size = 22;
                             let text_color = [1.0, 1.0, 1.0, 1.0]; // White
                             let text_width = glyphs.width(font_size, &timer_text).unwrap_or(0.0);
+                            let kills_width = glyphs.width(font_size, &kills_text).unwrap_or(0.0);							
                             let text_x = (screen_width - text_width) / 2.0;
+							let kills_x = (screen_width - kills_width) / 2.0;
                             let text_y = 50.0;
+							let kills_y = text_y + 30.0;
 
                             text::Text::new_color(text_color, font_size)
                                 .draw(
@@ -6065,6 +6187,16 @@ fn main() {
                                     g,
                                 )
                                 .ok();
+								
+                            text::Text::new_color([0.0, 1.0, 0.0, 1.0], font_size) // Green for kills
+                                .draw(
+                                    &kills_text,
+                                    &mut glyphs,
+                                    &oc.draw_state,
+                                    oc.transform.trans(kills_x, kills_y),
+                                    g,
+                                )
+                                .ok();								
                         }
 
                         block_system.draw_ui(oc, g);
@@ -6823,6 +6955,14 @@ fn main() {
                                         &mut combo_system,
 										is_paused,
                                     );
+									
+                                    // Soldier Reward: 1.5s Invincibility on Kinetic Strike
+                                    if fighter.fighter_type == FighterType::Soldier {
+                                        fighter.invincible_timer = 2.5;
+                                        chatbox.add_interaction(vec![
+                                            ("ATOMIC-STATE", MessageType::Warning),
+                                        ]);
+                                    }									
 
                                     let texture_index = if intake_count <= 10 {
                                         0 // Green
@@ -6891,6 +7031,7 @@ fn main() {
                                         &mut combo_system,
                                         &mut strike,
                                         &audio_manager,
+										&mut chatbox,
                                         &current_strike_textures,
                                         &mut current_racer_texture,
                                         &mut strike_frame,
@@ -7674,18 +7815,30 @@ fn main() {
  
                                             // Grant immunity during kinetic rush
                                             fighter.invincible_timer = KINETIC_STRIKE_DAMAGE_IMMUNITY_DURATION;
+											
+                                            // Raptor Reward: 1.5s Invincibility on Kinetic Rush
+                                            if fighter.fighter_type == FighterType::Raptor {
+                                                fighter.invincible_timer = 2.5;
+                                                chatbox.add_interaction(vec![
+                                                    ("ATOMIC-STATE", MessageType::Warning),
+                                                ]);
+                                            }											
  
                                             if CPU_ENABLED {
                                                 for cpu in cpu_entities.iter_mut() {
-                                                    if check_line_collision(ix, iy, cex, cey, cpu.x, cpu.y) {
-                                                        let rush_damage = fighter.melee_damage; // * effectiveness_multiplier; 
+																						if check_line_collision(ix, iy, cex, cey, cpu.x, cpu.y) {
+														let mut rush_damage = fighter.melee_damage; // * effectiveness_multiplier;
+														// 25% damage boost while ATOMIC-STATE is active
+														if fighter.invincible_timer > 1.0 {
+															rush_damage *= 1.25;
+														}
                                                         cpu.current_hp -= rush_damage;
  
                                                         damage_texts.push(DamageText {
                                                             text: format!("{:.0}", rush_damage),
                                                             x: cpu.x,
                                                             y: cpu.y - 50.0,
-                                                            color: [1.0, 1.0, 0.0, 1.0],
+                                                            color: if fighter.invincible_timer > 1.0 { [0.7, 1.0, 0.0, 1.0] } else { [1.0, 1.0, 0.0, 1.0] },
                                                             lifetime: 0.25,
                                                         });
  
@@ -7804,7 +7957,11 @@ fn main() {
                                                     if check_line_collision(
                                                         ix, iy, cex, cey, cpu.x, cpu.y,
                                                     ) {
-                                                        let rush_damage = fighter.melee_damage;
+														let mut rush_damage = fighter.melee_damage;
+														// 25% damage boost while ATOMIC-STATE is active
+														if fighter.invincible_timer > 1.0 {
+															rush_damage *= 1.25;
+														}												
                                                         cpu.current_hp -= rush_damage;
 
                                                         // Add damage text for rush attack
@@ -7812,7 +7969,7 @@ fn main() {
                                                             text: format!("{:.0}", rush_damage),
                                                             x: cpu.x,
                                                             y: cpu.y - 50.0,
-                                                            color: [1.0, 1.0, 0.0, 1.0], // Yellow for rush
+                                                            color: if fighter.invincible_timer > 1.0 { [0.7, 1.0, 0.0, 1.0] } else { [1.0, 1.0, 0.0, 1.0] }, // Cyan in ATOMIC-STATE, else Yellow
                                                             lifetime: 0.25,
                                                         });
 
@@ -8187,7 +8344,7 @@ fn main() {
 										("SOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
 
 										("-SOLDIER-", MessageType::Info), 
-										("WHAT THE HELL IS GOING ON?", MessageType::Dialogue),
+										("WHAT HAPPENED HERE?", MessageType::Dialogue),
 
 										("-GRAND COMMANDER-", MessageType::Info),  
 										("WE SENT UP A COMMUNICATION SIGNAL TO FIND 
@@ -8203,16 +8360,26 @@ fn main() {
 										FOR SUCH A DISTANCE. UNFORTUNATELY, OUR 
 										FUEL TANKS HAVE ALL BEEN DESTROYED.", MessageType::Dialogue),
 
-										("-RACER-", MessageType::Info), 
-										("WE CAN FUEL IT UP AT THE RACETRACK.", MessageType::Dialogue),
+										("-SOLDIER-", MessageType::Info), 
+										("I SAW A FUEL STATION AT THE SABERCROSS 
+										TRACK I NEARLY DIED ON. THAT WOULD DO 
+										THE JOB.", MessageType::Dialogue),
+
 
 										("-GRAND COMMANDER-", MessageType::Info), 
-										("GO AT ONCE. I WILL SEND YOU THE 
-										COORDINATES ONCE YOU'RE READY.", MessageType::Dialogue),	
+										("GO AT ONCE. I WILL SEND YOU THE MISSILE  
+										RANGE COORDINATES ONCE YOU'RE THERE.", MessageType::Dialogue),
+
+										("-SOLDIER-", MessageType::Info), 
+										("UNDERSTOOD. WE ALSO BROUGHT SURVIVORS FROM
+										THE ROCKETBAY.", MessageType::Dialogue),	
+
+										("-GRAND COMMANDER-", MessageType::Info), 
+										("NICE WORK. ONCE WE GET THIS PLACE BACK
+										IN ORDER, I'LL SEND OUT REINFORCEMENTS.", MessageType::Dialogue),											
 
 										("-RAPTOR-", MessageType::Info), 
-										("GRRAR!", MessageType::Dialogue),									   
-								  									  
+										("GRRR.", MessageType::Dialogue),																												 							  
 									]);
 								   
                                 } else if !is_paused && show_fort_silo_survivor_prompt {
@@ -9030,6 +9197,11 @@ fn main() {
                         continue;
                     }
                     println!("Resuming game from last field entry point after party wipe.");
+					
+                    // BUG FIX: Reset lmb_held on respawn to prevent stuck melee strike
+                    lmb_held = false;
+                    melee_rapid_fire_timer = 0.0;
+                    soldier_rapid_fire_timer = 0.0;					
 
                     // Reset flying saucer defeated flag if died to flying saucer
                     if death_type == DeathType::FlyingSaucer {
@@ -9340,6 +9512,9 @@ fn main() {
                     if let Some(sink) = bike_idle_sound_sink.take() {
                         sink.stop();
                     }
+					
+					arena_kill_count = 0; // Reset arena counter on full party wipe
+					last_arena_milestone = 0;
 
                     // Clear downed state on full party wipe restart
                     downed_fighters.clear();
@@ -9388,6 +9563,12 @@ fn main() {
                                 println!("Cannot select {:?} - fighter is downed.", target_fighter);
                             } else {
                                 // Fighter is not downed, proceed with the switch
+								
+                                // BUG FIX: Reset lmb_held on group swap respawn
+                                lmb_held = false;
+                                melee_rapid_fire_timer = 0.0;
+                                soldier_rapid_fire_timer = 0.0;								
+								
                                 audio_manager.play_sound_effect("death").ok();
                                 fighter_hp_map.insert(fighter.fighter_type, fighter.current_hp);
                                 let new_radius = fighter.switch_fighter_type(target_fighter);
@@ -9471,6 +9652,11 @@ fn main() {
                                 strike_animation_timer = 0.25; // Animate for a short duration
 
                                 game_state = GameState::Playing;
+								
+                                // Reset milestone tracking if we are in Arena mode to ensure buffs resume correctly
+                                if endless_arena_mode_active {
+                                    last_arena_milestone = arena_kill_count / 50;
+                                }								
 
                                 key_w_pressed = false;
                                 key_s_pressed = false;
@@ -10223,5 +10409,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.15 Game loop ended.");
+    println!("sbrx0.2.16 Game loop ended.");
 }
