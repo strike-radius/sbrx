@@ -4752,7 +4752,7 @@ fn main() {
 										let required_speed = dist / travel_time;
 										fighter.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
 										fighter.knockback_duration = travel_time;
-										fighter.invincible_timer = 2.0;
+										fighter.invincible_timer = 1.0;
 										in_jump_sequence = true;  // Start jump sequence
 									}
 								}
@@ -4772,7 +4772,7 @@ fn main() {
 										let required_speed = dist / travel_time;
 										fighter.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
 										fighter.knockback_duration = travel_time;
-										fighter.invincible_timer = 2.0; 
+										fighter.invincible_timer = 1.0; 
 									}
 								}
 								// If not in jump sequence, do nothing (player walks/rides over)
