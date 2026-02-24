@@ -451,7 +451,7 @@ fn handle_melee_strike<'a>(
 							if result.finisher_hit_count == 5 && fighter.fighter_type == FighterType::Racer {
 								fighter.invincible_timer = 2.5;
 								chatbox.add_interaction(vec![
-									("ATOMIC-STATE", MessageType::Warning),
+									//("ATOMIC-STATE", MessageType::Warning),
 								]);
 							}							
 							
@@ -472,7 +472,7 @@ fn handle_melee_strike<'a>(
 									if fighter.fighter_type == FighterType::Racer {
 										fighter.invincible_timer = 2.5;
 										chatbox.add_interaction(vec![
-											("ATOMIC-STATE", MessageType::Warning),
+											//("ATOMIC-STATE", MessageType::Warning),
 										]);
 									}									
                                 }
@@ -492,7 +492,7 @@ fn handle_melee_strike<'a>(
             {
                 fighter.invincible_timer = 2.5;
                 chatbox.add_interaction(vec![
-                    ("ATOMIC-STATE", MessageType::Warning),
+                    //("ATOMIC-STATE", MessageType::Warning),
                 ]);
                 combo_system.racer_combo_hit_connected = false;
             }			
@@ -6986,7 +6986,7 @@ fn main() {
                                     if fighter.fighter_type == FighterType::Soldier {
                                         fighter.invincible_timer = 2.0;
                                         chatbox.add_interaction(vec![
-                                            ("ATOMIC-STATE", MessageType::Warning),
+                                            //("ATOMIC-STATE", MessageType::Warning),
                                         ]);
                                     }									
 
@@ -7846,7 +7846,7 @@ fn main() {
                                             if fighter.fighter_type == FighterType::Raptor {
                                                 fighter.invincible_timer = 1.5;
                                                 chatbox.add_interaction(vec![
-                                                    ("ATOMIC-STATE", MessageType::Warning),
+                                                    //("ATOMIC-STATE", MessageType::Warning),
                                                 ]);
                                             }											
  
