@@ -6641,9 +6641,7 @@ fn main() {
                             || show_grand_commander_prompt
                             || show_finale_info_post_prompt
                             || show_soldier_interaction_prompt
-                            || show_racetrack_soldier_prompt
-                            || show_finale_info_post_prompt
-                            || show_soldier_interaction_prompt
+                            || show_racetrack_soldier_prompt							
                         {
                             let prompt_text = "INTERACT [E]";
                             let prompt_font_size = 24;
@@ -6652,6 +6650,15 @@ fn main() {
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
                             let text_y = screen_height - 100.0;
+							
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x - padding, text_y - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
+							
                             text::Text::new_color(prompt_color, prompt_font_size)
                                 .draw(
                                     prompt_text,
@@ -6668,9 +6675,18 @@ fn main() {
                             let prompt_font_size = 20;
                             let prompt_color = [0.0, 1.0, 0.0, 1.0];
                             let base_prompt_y = 100.0;
-                            let text_x1 = (screen_width
-                                - glyphs.width(prompt_font_size, prompt_text1).unwrap_or(0.0))
-                                / 2.0;
+                            let text_w = glyphs.width(prompt_font_size, prompt_text1).unwrap_or(0.0);
+                            let text_x1 = (screen_width - text_w) / 2.0;
+                            let text_y1 = base_prompt_y;
+ 
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x1 - padding, text_y1 + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_w + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );
+
                             let text_y1 = base_prompt_y;
                             text(
                                 prompt_color,
@@ -6693,6 +6709,15 @@ fn main() {
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
                             let text_y = 100.0;
+
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x - padding, text_y + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
+							
                             text(
                                 prompt_color,
                                 prompt_font_size,
@@ -6720,6 +6745,20 @@ fn main() {
                             let text2_x = (screen_width - text2_width) / 2.0;
                             let text_y1 = 250.0;
                             let text_y2 = text_y1 + 30.0;
+							
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text1_x - padding, text_y1 - padding, text1_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text2_x - padding, text_y2 - padding, text2_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
 
                             text(
                                 prompt_color,
@@ -6751,6 +6790,15 @@ fn main() {
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
                             let text_y = 100.0;
+							
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x - padding, text_y + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
+							
                             text(
                                 prompt_color,
                                 prompt_font_size,
@@ -6772,6 +6820,15 @@ fn main() {
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
                             let text_y = 100.0;
+							
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x - padding, text_y + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
+							
                             text(
                                 prompt_color,
                                 prompt_font_size,
@@ -6793,6 +6850,15 @@ fn main() {
                                 glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                             let text_x = (screen_width - text_width) / 2.0;
                             let text_y = 100.0;
+							
+                            let padding = 5.0;
+                            rectangle(
+                                [0.1, 0.1, 0.1, 0.8],
+                                [text_x - padding, text_y + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                oc.transform,
+                                g,
+                            );							
+							
                             text(
                                 prompt_color,
                                 prompt_font_size,
@@ -6818,6 +6884,15 @@ fn main() {
                                     glyphs.width(prompt_font_size, prompt_text).unwrap_or(0.0);
                                 let text_x = (screen_width - text_width) / 2.0;
                                 let text_y = 100.0;
+								
+                                let padding = 5.0;
+                                rectangle(
+                                    [0.1, 0.1, 0.1, 0.8],
+                                    [text_x - padding, text_y + prompt_font_size as f64 - prompt_font_size as f64 - padding, text_width + padding * 2.0, prompt_font_size as f64 + padding * 2.0],
+                                    oc.transform,
+                                    g,
+                                );								
+								
                                 text(
                                     prompt_color,
                                     prompt_font_size,
