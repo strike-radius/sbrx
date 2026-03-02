@@ -251,6 +251,9 @@ struct Survivor {
 }
 
 fn spawn_particles(particles: &mut Vec<Particle>, pos_x: f64, pos_y: f64, count: usize) {
+    // Safety: Global hard cap on particles
+    if particles.len() > 2000 { return; }	
+	
     let mut rng = rand::rng();
     let speed_range = (150.0, 250.0);
     let lifetime_range = (0.3, 0.5);
@@ -431,14 +434,17 @@ fn handle_melee_strike<'a>(
                     } else {
                         [0.8, 0.8, 0.8, 1.0]
                     };
-
-                    damage_texts.push(DamageText {
-                        text: format!("{:.0}", total_damage_this_cpu),
-                        x: cpu.x,
-                        y: cpu.y - 50.0,
-                        color: text_color,
-                        lifetime: 0.25,
-                    });
+					
+                    // Safety: Prevent text overflow
+                    if damage_texts.len() < 100 {
+						damage_texts.push(DamageText {
+							text: format!("{:.0}", total_damage_this_cpu),
+							x: cpu.x,
+							y: cpu.y - 50.0,
+							color: text_color,
+							lifetime: 0.25,
+						});
+					}	
 
                     if !cpu.is_dead() {
                         if was_point_hit {
@@ -2092,8 +2098,19 @@ fn main() {
                             p.pos.y += p.vel.y * dt;
                             p.lifetime -= dt;
                         }
-                        particles.retain(|p| p.lifetime > 0.0);
+						for i in (0..particles.len()).rev() {
+							if particles[i].lifetime <= 0.0 {
+								particles.swap_remove(i);
+							}
+						}
                     }
+					
+                    // Safety: Cap visual effects and helper vectors
+                    if damage_texts.len() > 100 { damage_texts.remove(0); }
+                    if active_visual_effects.len() > 100 { active_visual_effects.remove(0); }
+                    if pulse_orbs.len() > 100 { pulse_orbs.remove(0); }
+                    if active_kinetic_strike_effects.len() > 50 { active_kinetic_strike_effects.remove(0); }
+                    if kinetic_rush_lines.len() > 50 { kinetic_rush_lines.remove(0); }					
 
                     if frontal_strike_timer > 0.0 {
                         frontal_strike_timer -= dt;
@@ -2195,17 +2212,29 @@ fn main() {
                     for effect in &mut active_visual_effects {
                         effect.lifetime -= dt;
                     }
-                    active_visual_effects.retain(|e| e.lifetime > 0.0);
+                    for i in (0..active_visual_effects.len()).rev() {
+                        if active_visual_effects[i].lifetime <= 0.0 {
+                            active_visual_effects.swap_remove(i);
+                        }
+                    }
 
                     for effect in &mut active_kinetic_strike_effects {
                         effect.lifetime -= dt;
                     }
-                    active_kinetic_strike_effects.retain(|e| e.lifetime > 0.0);
+                    for i in (0..active_kinetic_strike_effects.len()).rev() {
+                        if active_kinetic_strike_effects[i].lifetime <= 0.0 {
+                            active_kinetic_strike_effects.swap_remove(i);
+                        }
+                    }
 					
                     for rush_line in &mut kinetic_rush_lines {
                         rush_line.lifetime -= dt;
                     }
-                    kinetic_rush_lines.retain(|l| l.lifetime > 0.0);					
+                    for i in (0..kinetic_rush_lines.len()).rev() {
+                        if kinetic_rush_lines[i].lifetime <= 0.0 {
+                            kinetic_rush_lines.swap_remove(i);
+                        }
+                    }				
 
                     if bunker_entry_choice == BunkerEntryChoice::AwaitingInput {
                         let mut is_in_range = false;
@@ -3171,7 +3200,11 @@ fn main() {
                         text.lifetime -= dt;
                         text.y -= 30.0 * dt;
                     }
-                    damage_texts.retain(|text| text.lifetime > 0.0);
+                    for i in (0..damage_texts.len()).rev() {
+                        if damage_texts[i].lifetime <= 0.0 {
+                            damage_texts.swap_remove(i);
+                        }
+                    }
                     if current_area.is_none() {
                         if (racetrack_active || endless_arena_mode_active)
                             && sbrx_map_system.current_field_id == SbrxFieldId(0, 0)
@@ -3973,7 +4006,11 @@ fn main() {
                             }
                         }
                     }
-                    pulse_orbs.retain(|o| o.active);
+                    for i in (0..pulse_orbs.len()).rev() {
+                        if !pulse_orbs[i].active {
+                            pulse_orbs.swap_remove(i);
+                        }
+                    }
 
                     let is_on_bike = fighter.state == RacerState::OnBike;
                     let is_moving_on_bike_input =
@@ -4033,7 +4070,7 @@ fn main() {
                     });
                     if !PERFORMANCE_MODE {
                         spawn_timer += dt;
-                        if spawn_timer >= next_spawn {
+                        if spawn_timer >= next_spawn && spheres.len() < 50 {
                             spheres.push(Box::new(MovingSphere::new(
                                 safe_gen_range(MIN_X + 50.0, MAX_X - 50.0, "Sphere x"), // meteor_areaX
                                 -10.0,
@@ -4985,8 +5022,19 @@ fn main() {
 
                 if let Some(_) = e.render_args() {
                     window.draw_2d(&e, |c, g, device| {
+                        // Optimized: Get field colors once per frame
+                        let (field_ground_color, field_sky_color) = sbrx_map_system.get_current_field_colors();						
+						
                         let tc = camera.transform(c);
                         let oc = c;
+						
+                        // --- OPTIMIZATION: Calculate World View Bounds ---
+                        let half_w = (screen_width / 2.0) / camera.zoom;
+                        let half_h = (screen_height / 2.0) / camera.zoom;
+                        let view_l = camera.x - half_w - 100.0; // Buffer for large sprites
+                        let view_r = camera.x + half_w + 100.0;
+                        let view_t = camera.y - half_h - 100.0;
+                        let view_b = camera.y + half_h + 100.0;						
 						
 						// Render track notification (bottom right)
 						if let Some(ref notif) = track_notification {
@@ -5216,9 +5264,7 @@ fn main() {
                                     .ok();
                             }
                         } else {
-                            let (current_ground_color, current_sky_color) =
-                                sbrx_map_system.get_current_field_colors();
-                            clear(current_ground_color, g);
+                            clear(field_ground_color, g);
 
                             // --- NEW: Render Ground Texture ---
                             if !excluded_ground_texture_fields
@@ -5258,7 +5304,7 @@ fn main() {
                             }
 
                             piston_window::rectangle(
-                                current_sky_color,
+                                field_sky_color,
                                 [-5000.0, -5000.0, sky_width + 10000.0, line_y + 5000.0],
                                 tc.transform,
                                 g,
@@ -5271,6 +5317,11 @@ fn main() {
                                     placed_ground_assets.get(&sbrx_map_system.current_field_id)
                                 {
                                 for asset in assets_to_render {
+                                    // Frustum Culling: Skip if asset is off-screen
+                                    if asset.x < view_l || asset.x > view_r || asset.y < view_t || asset.y > view_b {
+                                        continue;
+                                    }									
+									
                                     if let Some(texture) =
                                         ground_asset_textures.get(&asset.texture_name)
                                     {
@@ -5706,7 +5757,10 @@ fn main() {
                                 survivors.get(&sbrx_map_system.current_field_id)
                             {
                                 for survivor in field_survivors {
-                                    if !survivor.is_rescued {
+                                    if !survivor.is_rescued && 
+                                       survivor.x > view_l && survivor.x < view_r && 
+                                       survivor.y > view_t && survivor.y < view_b 
+                                    {
                                         if !FOG_OF_WAR_ENABLED
                                             || fog_of_war.is_position_visible(
                                                 sbrx_map_system.current_field_id,
@@ -5767,6 +5821,12 @@ fn main() {
                             }
                         }
                         for cpu_entity in &cpu_entities {
+                            // Frustum Culling: Skip CPUs that aren't visible
+                            if cpu_entity.x < view_l || cpu_entity.x > view_r || 
+                               cpu_entity.y < view_t || cpu_entity.y > view_b {
+                                continue;
+                            }							
+							
                             if !FOG_OF_WAR_ENABLED
                                 || fog_of_war.should_render_entity(
                                     sbrx_map_system.current_field_id,
@@ -7758,7 +7818,8 @@ fn main() {
                                     && !rush_active
                                 {
                                     if !is_paused {
-                                        fighter.y = (fighter.y - 10.0).max(current_min_y);
+                                        // Normalized: 600 pixels per second
+                                        fighter.y = (fighter.y - 10.0).max(current_min_y); // Revert to fixed nudge
                                     }
                                     if !movement_active || movement_timer < movement_buffer_duration
                                     {
@@ -7777,7 +7838,7 @@ fn main() {
                                     && !rush_active
                                 {
                                     if !is_paused {
-                                        fighter.y = (fighter.y + 10.0).min(current_max_y);
+                                        fighter.y = (fighter.y + 10.0).min(current_max_y); // Revert to fixed nudge
                                     }
                                     if !movement_active || movement_timer < movement_buffer_duration
                                     {

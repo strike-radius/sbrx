@@ -1,0 +1,37 @@
+
+Please walk me through the 4th section of optimization if there is more to be handled besides the following:
+
+4. GPU Optimization: Frustum Culling for Ground Assets
+
+In main.rs, you iterate through every ground asset in the field and call image(). If a field has 60 assets, but you are zoomed in and can only see 5, you are still sending 60 draw commands to the GPU.
+
+Main Game (main.rs):
+code Rust
+
+// Inside placed_ground_assets rendering loop
+    for asset in assets_to_render {
++       // Simple bounding box check: Only draw if within camera view
++       if asset.x < camera.x - 1000.0 || asset.x > camera.x + 1000.0 ||
++          asset.y < camera.y - 600.0  || asset.y > camera.y + 600.0 {
++           continue;
++       }
+
+        if let Some(texture) = ground_asset_textures.get(&asset.texture_name) {
+            // ... image() call ...
+			
+Please walk me through the final section of optimization if there is more to be handled besides the following:
+			
+5. Prevent "Input Lag" on Slow Frames
+
+In your update functions, you use dt (Delta Time). However, some physics constants (like SHIP_DRAG in firmament_lib) are applied using powf(dt * 60.0). While mathematically correct, powf is an expensive CPU operation.
+
+Firmament (firmament_lib/src/lib.rs):
+code Rust
+
+// firmament_lib/src/lib.rs update_player
+-   self.player.obj.vel[0] *= current_drag.powf(dt * 60.0);
+-   self.player.obj.vel[1] *= current_drag.powf(dt * 60.0);
++   // Optimization: Linear approximation of drag is much faster for CPUs
++   let drag_factor = 1.0 - (1.0 - current_drag) * (dt * 60.0);
++   self.player.obj.vel[0] *= drag_factor;
++   self.player.obj.vel[1] *= drag_factor;			

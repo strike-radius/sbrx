@@ -126,13 +126,16 @@ impl Shoot {
                     } else {
                         [1.0, 1.0, 1.0, 1.0] // White
                     };
-                    damage_texts.push(DamageText {
-                        text: format!("{:.0}", damage),
-                        x: cpu_entity.x,
-                        y: cpu_entity.y - 50.0,
-                        color: ranged_dmg_color,
-                        lifetime: 0.25,
-                    });
+					
+					if damage_texts.len() < 100 {
+						damage_texts.push(DamageText {
+							text: format!("{:.0}", damage),
+							x: cpu_entity.x,
+							y: cpu_entity.y - 50.0,
+							color: ranged_dmg_color,
+							lifetime: 0.25,
+						});
+					}	
 
                     // Apply bleed effect for RACER only
                     if fighter.fighter_type == crate::game_state::FighterType::Racer {
@@ -140,14 +143,16 @@ impl Shoot {
                         cpu_entity.bleed_effect = Some(BleedEffect::new(50.0));
 
                         // Add bleed application text
-                        damage_texts.push(DamageText {
-                            text: "BLEED".to_string(),
-                            x: cpu_entity.x,
-                            y: cpu_entity.y - 70.0,
-                            color: [1.0, 0.0, 0.0, 1.0], // Red
-                            lifetime: 0.5,
-                        });
-                    }
+						if damage_texts.len() < 100 {
+							damage_texts.push(DamageText {
+								text: "BLEED".to_string(),
+								x: cpu_entity.x,
+								y: cpu_entity.y - 70.0,
+								color: [1.0, 0.0, 0.0, 1.0], // Red
+								lifetime: 0.5,
+							});
+						}
+					}
 
                     // Knockback is now applied unconditionally if hit, death is handled in main loop
                     let knockback_force =

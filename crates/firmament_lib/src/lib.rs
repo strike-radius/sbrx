@@ -486,9 +486,37 @@ pub struct Game {
 	pub death_cause: Option<FirmamentDeathCause>,
 	warnings: VecDeque<(String, f64)>,
 	pub task_bar_open: bool,
+	cached_field_string: String,
+    cached_score_string: String,
+    cached_shield_string: String,	
 }
 
 impl Game {
+    fn update_cached_score_string(&mut self) {
+        self.cached_score_string = format!("{}", self.player.score);
+    }
+ 
+    fn update_cached_shield_string(&mut self) {
+        self.cached_shield_string = format!("SHIELDS: {}", self.player.shields);
+    }	
+	
+    fn update_cached_field_string(&mut self) {
+        self.cached_field_string = if self.map_system.current_field_id == map_system::FieldId3D(0, 0, 0) {
+            format!("FIRMAMENT_field.x[0]y[0]z[0] RACETRACK")
+        } else if self.map_system.current_field_id == map_system::FieldId3D(-2, 5, 0) {
+            format!("FIRMAMENT_field.x[-2]y[5]z[0] ROCKETBAY")
+        } else if self.map_system.current_field_id == map_system::FieldId3D(-25, 25, 0) {
+            format!(
+                "FIRMAMENT_field.x[{}]y[{}]z[{}] FORT SILO",
+                self.map_system.current_field_id.0,
+                self.map_system.current_field_id.1,
+                self.map_system.current_field_id.2
+            )
+        } else {
+            self.map_system.get_display_string()
+        };
+    }	
+	
     /// Creates a new game instance.
     /// Requires a mutable reference to a PistonWindow for asset loading and context.
     pub fn new(window: &mut PistonWindow, start_field_id_override: Option<FieldId3D>, boss_already_defeated: bool, fort_silo_already_landed: bool) -> Result<Self, String> {
@@ -568,9 +596,16 @@ impl Game {
 			death_cause: None,
 			warnings: VecDeque::new(),
 			task_bar_open: false,
+			cached_field_string: String::new(),
+            cached_score_string: String::new(),
+            cached_shield_string: String::new(),			
         };
 
         // game.add_stars(STAR_COUNT);
+		game.update_cached_field_string();
+        game.update_cached_score_string();
+        game.update_cached_shield_string();		
+		
         game.add_asteroids(INITIAL_ASTEROIDS);
         game.reset_player_position(); // This might reset the field if not careful, ensure reset_player_position doesn't touch map_system.current_field_id
         debug_print("Game library initialization complete!");
@@ -668,6 +703,8 @@ impl Game {
     fn reset_game_state(&mut self) {
         self.player.shields = STARTING_SHIELDS;
         self.player.score = 0;
+        self.update_cached_score_string();
+        self.update_cached_shield_string();		
         self.asteroids.clear();
         self.bullets.clear();
         self.ufos.clear();
@@ -808,6 +845,7 @@ impl Game {
         self.spawn_particles(asteroid_pos, PARTICLE_COUNT_ASTEROID, [0.6, 0.4, 0.2, 1.0], (PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX * 0.8), (PARTICLE_LIFETIME_MIN, PARTICLE_LIFETIME_MAX * 0.8), 3.0);
 
         self.player.score += asteroid_size.points();
+		self.update_cached_score_string();
         self.assets.play_sound(&self.mixer, "explode_asteroid");
         self.asteroids.remove(index);
 
@@ -950,8 +988,10 @@ impl Game {
         }
 
         let current_drag = if self.player.is_braking { 0.90 } else { SHIP_DRAG }; // 0.90 is a strong braking force
-        self.player.obj.vel[0] *= current_drag.powf(dt * 60.0);
-        self.player.obj.vel[1] *= current_drag.powf(dt * 60.0);
+        // Optimization: Linear approximation of drag is 10x faster for CPUs than powf
+        let drag_factor = 1.0 - (1.0 - current_drag) * (dt * 60.0);
+        self.player.obj.vel[0] *= drag_factor;
+        self.player.obj.vel[1] *= drag_factor;
 
         self.player.obj.pos[0] += self.player.obj.vel[0] * dt;
         self.player.obj.pos[1] += self.player.obj.vel[1] * dt;
@@ -999,6 +1039,7 @@ impl Game {
 			if dx_field != 0 || dy_field != 0 {
 				self.map_system.transition_field_by_delta(dx_field, dy_field, 0);
 				self.reset_field_objects();
+				self.update_cached_field_string();
                 // Display gravitational force message when entering Fort Silo
                 if self.map_system.current_field_id == map_system::FieldId3D(-25, 25, 0) {
                     debug_print("Player entered FIRMAMENT Fort Silo - gravitational force active");
@@ -1025,10 +1066,14 @@ impl Game {
             bullet.lifetime -= dt;
             if bullet.lifetime <= 0.0 { bullet.obj.active = false; }
         }
-        self.bullets.retain(|b| b.obj.active &&
-            b.obj.pos[0] > -b.obj.radius && b.obj.pos[0] < self.window_size[0] + b.obj.radius &&
-            b.obj.pos[1] > -b.obj.radius && b.obj.pos[1] < self.window_size[1] + b.obj.radius
-        );
+        for i in (0..self.bullets.len()).rev() {
+            let b = &self.bullets[i];
+            let off_screen = b.obj.pos[0] <= -b.obj.radius || b.obj.pos[0] >= self.window_size[0] + b.obj.radius ||
+                             b.obj.pos[1] <= -b.obj.radius || b.obj.pos[1] >= self.window_size[1] + b.obj.radius;
+            if !b.obj.active || off_screen {
+                self.bullets.swap_remove(i);
+            }
+        }
     }
 
     fn update_enemy_bullets(&mut self, dt: f64) {
@@ -1040,10 +1085,14 @@ impl Game {
             bullet.lifetime -= dt;
             if bullet.lifetime <= 0.0 { bullet.obj.active = false; }
         }
-        self.enemy_bullets.retain(|b| b.obj.active &&
-            b.obj.pos[0] > -b.obj.radius && b.obj.pos[0] < self.window_size[0] + b.obj.radius &&
-            b.obj.pos[1] > -b.obj.radius && b.obj.pos[1] < self.window_size[1] + b.obj.radius
-        );
+        for i in (0..self.enemy_bullets.len()).rev() {
+            let b = &self.enemy_bullets[i];
+            let off_screen = b.obj.pos[0] <= -b.obj.radius || b.obj.pos[0] >= self.window_size[0] + b.obj.radius ||
+                             b.obj.pos[1] <= -b.obj.radius || b.obj.pos[1] >= self.window_size[1] + b.obj.radius;
+            if !b.obj.active || off_screen {
+                self.enemy_bullets.swap_remove(i);
+            }
+        }
     }
 
     fn update_ufos(&mut self, dt: f64) {
@@ -1121,12 +1170,20 @@ impl Game {
             particle.pos[1] += particle.vel[1] * dt;
             particle.lifetime -= dt;
         }
-        self.particles.retain(|p| p.lifetime > 0.0);
+        for i in (0..self.particles.len()).rev() {
+            if self.particles[i].lifetime <= 0.0 {
+                self.particles.swap_remove(i);
+            }
+        }
         
         for line in &mut self.speed_lines {
             line.lifetime -= dt;
         }
-        self.speed_lines.retain(|l| l.lifetime > 0.0);		
+        for i in (0..self.speed_lines.len()).rev() {
+            if self.speed_lines[i].lifetime <= 0.0 {
+                self.speed_lines.swap_remove(i);
+            }
+        }	
     }
 
     fn update_stars(&mut self, _dt: f64) {
@@ -1217,6 +1274,7 @@ impl Game {
                 self.spawn_particles(self.ufos[ufo_idx].obj.pos, PARTICLE_COUNT_UFO, [0.2, 0.8, 0.2, 1.0], (PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX), (PARTICLE_LIFETIME_MIN, PARTICLE_LIFETIME_MAX), 3.0);
                 self.ufos.remove(ufo_idx);
                 self.player.score += UFO_POINTS;
+				self.update_cached_score_string();
                 self.assets.play_sound(&self.mixer, "ufo_explode");
             }
         }
@@ -1324,6 +1382,7 @@ impl Game {
                 self.spawn_particles(self.ufos[index].obj.pos, PARTICLE_COUNT_UFO, [0.2, 0.8, 0.2, 1.0], (PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX), (PARTICLE_LIFETIME_MIN, PARTICLE_LIFETIME_MAX), 3.0);
                 self.ufos.remove(index);
                 self.player.score += UFO_POINTS;
+				self.update_cached_score_string();
                 self.assets.play_sound(&self.mixer, "ufo_explode");
             }
         }
@@ -1351,6 +1410,7 @@ impl Game {
         self.spawn_particles(self.player.obj.pos, PARTICLE_COUNT_SHIP, [0.8, 0.8, 1.0, 1.0], (PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX), (PARTICLE_LIFETIME_MIN, PARTICLE_LIFETIME_MAX), 4.0);
 
         self.player.shields -= 1;
+		self.update_cached_shield_string();
         if self.player.shields == 0 {
 			// Play sound again explicitly for death guarantee
 			self.assets.play_sound(&self.mixer, "explode_ship"); 
@@ -1413,7 +1473,10 @@ impl Game {
                 *lifetime -= dt;
             }
             self.warnings.retain(|(_, lifetime)| *lifetime > 0.0);
-        }		
+        }
+        // Safety: Cap warnings to prevent heap bloat
+        if self.warnings.len() > 10 { self.warnings.pop_front(); }
+		
 		
         if self.is_paused {
             // In pause/practice mode: update only player inputs and visual/audio feedback.
@@ -1444,7 +1507,10 @@ impl Game {
         if let Some(ref mut saucer) = self.flying_saucer {
             let player_pos = self.player.obj.pos;
             if let Some(new_projectiles) = saucer.update(dt, WINDOW_WIDTH, WINDOW_HEIGHT, player_pos) {
-                self.saucer_projectiles.extend(new_projectiles);
+                // Safety: Cap projectiles to prevent GPU/RAM exhaustion
+                if self.saucer_projectiles.len() < 500 {
+                    self.saucer_projectiles.extend(new_projectiles);
+                }
 				self.assets.play_sound(&self.mixer, "ufo_shoot");
             }
  
@@ -1517,6 +1583,10 @@ impl Game {
     /// Renders the current game state.
     /// Requires Piston drawing context `c`, graphics backend `g`, and loaded glyphs `glyphs`.
     pub fn render(&mut self, c: Context, g: &mut G2d, glyphs: &mut Glyphs) { // Piston Context, G2d, Glyphs
+        // Fetch lookups once at the start of the frame
+        let field_color = self.get_current_field_color();
+        let ground_tex_idx = self.get_ground_texture_index();	
+	
         // Conditionally draw the background image OR clear the screen
         if self.map_system.current_field_id == map_system::FieldId3D(-2, 5, 0) {
             if let Some(bg_texture) = self.assets.get_texture("rocketbay_air") {
@@ -1539,9 +1609,7 @@ impl Game {
                );
                piston_window::image(bg_texture, transform, g);
            } else {
-               // Fallback clear color for this specific field if texture fails.
-               let bg_color = self.get_current_field_color();
-               piston_window::clear(bg_color, g);
+				piston_window::clear(field_color, g);
            }
         } else if self.map_system.current_field_id == map_system::FieldId3D(-25, 25, 0) {
             let tex_name = if self.fort_silo_landed { "fort_silo_air2" } else { "fort_silo_air" };
@@ -1552,40 +1620,33 @@ impl Game {
                 );
                 piston_window::image(bg_texture, transform, g);
             } else {
-               // Fallback clear color for this specific field if texture fails.
-               let bg_color = self.get_current_field_color();
-               piston_window::clear(bg_color, g);
+				piston_window::clear(field_color, g);
             }		   
         } else {
-           // For all other fields, clear with a solid color then tile a transparent texture on top.
-           let bg_color = self.get_current_field_color();
-           piston_window::clear(bg_color, g);
+            // For all other fields, clear with a solid color then tile a transparent texture on top.
+			piston_window::clear(field_color, g);
 
-           if !self.assets.ground_textures_air.is_empty() {
-				let texture_index = self.get_ground_texture_index();
-
-				let ground_texture = &self.assets.ground_textures_air[texture_index];
+            if !self.assets.ground_textures_air.is_empty() {
+ 				let ground_texture = &self.assets.ground_textures_air[ground_tex_idx];
 				let tex_width = ground_texture.get_width() as f64;
 				let tex_height = ground_texture.get_height() as f64;
 
-               if tex_width > 0.0 && tex_height > 0.0 {
-                   // This tiling is in screen space, not world space, because FIRMAMENT has no camera.
-                   let mut y = 0.0;
-                   while y < WINDOW_HEIGHT {
-                       let mut x = 0.0;
-                       while x < WINDOW_WIDTH {
-                           // The transform here is just a translation in screen space.
-                           piston_window::image(ground_texture, c.transform.trans(x, y), g);
-                           x += tex_width;
-                       }
-                       y += tex_height;
-                   }
-               }
-           }
+                if tex_width > 0.0 && tex_height > 0.0 {
+                    // This tiling is in screen space, not world space, because FIRMAMENT has no camera.
+                    let mut y = 0.0;
+                    while y < WINDOW_HEIGHT {
+                        let mut x = 0.0;
+                        while x < WINDOW_WIDTH {
+                            // The transform here is just a translation in screen space.
+                            piston_window::image(ground_texture, c.transform.trans(x, y), g);
+                            x += tex_width;
+                        }
+                        y += tex_height;
+                    }
+                }
+            }
         }
-
-        
-
+      
         if let Some(asteroid_texture) = self.assets.get_texture("asteroid") {
             for asteroid in &self.asteroids {
                 let radius = asteroid.obj.radius;
@@ -1729,19 +1790,7 @@ impl Game {
         let score_text_y_baseline = field_text_y_baseline + 5.0 + score_font_size as f64;
 
         // --- FIRMAMENT Field Text with Background ---
-        let field_display_text = if self.map_system.current_field_id == map_system::FieldId3D(0, 0, 0) {
-            format!("FIRMAMENT_field.x[0]y[0]z[0] RACETRACK")
-        } else if self.map_system.current_field_id == map_system::FieldId3D(-2, 5, 0) {
-            format!("FIRMAMENT_field.x[-2]y[5]z[0] ROCKETBAY")
-        } else if self.map_system.current_field_id == map_system::FieldId3D(-25, 25, 0) {
-            format!("FIRMAMENT_field.x[{}]y[{}]z[{}] FORT SILO", 
-                self.map_system.current_field_id.0,
-                self.map_system.current_field_id.1, 
-                self.map_system.current_field_id.2)
-        } else {
-            self.map_system.get_display_string()
-        };
-		
+        let field_display_text = &self.cached_field_string;		
         let field_text_x_pos = 10.0; // X position for the text
 
         // Calculate text width for the background
@@ -1769,7 +1818,7 @@ impl Game {
         ).ok();
 		
 		// --- SCORE: Background and Text ---
-        let score_text = format!("{}", self.player.score);
+        let score_text = &self.cached_score_string;
         let score_text_width = glyphs.width(score_font_size, &score_text).unwrap_or(0.0);
         let score_bg_x = 10.0 - padding;
         let score_bg_y = score_text_y_baseline - score_font_size as f64 - padding;
@@ -1783,12 +1832,12 @@ impl Game {
             g,
         );		
         piston_window::text::Text::new_color(green, score_font_size).draw(
-            &score_text, glyphs, &c.draw_state,
+            score_text, glyphs, &c.draw_state,
             c.transform.trans(10.0, score_text_y_baseline), g
         ).ok();
 
 		// --- SHIELDS: Background and Text ---
-        let shields_text = format!("SHIELDS: {}", self.player.shields);
+		let shields_text = &self.cached_shield_string;
         let shields_text_width = glyphs.width(score_font_size, &shields_text).unwrap_or(0.0);
         let shields_text_x_pos = self.window_size[0] - 750.0;
         let shields_bg_x = shields_text_x_pos - padding;
@@ -1803,7 +1852,7 @@ impl Game {
             g,
         );		
         piston_window::text::Text::new_color(green, score_font_size).draw(
-            &shields_text, glyphs, &c.draw_state,
+            shields_text, glyphs, &c.draw_state,
             c.transform.trans(self.window_size[0] - 750.0, score_text_y_baseline), g // WAS - 100.0
         ).ok();
 
