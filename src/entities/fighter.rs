@@ -45,6 +45,7 @@ pub struct Fighter {
 	pub bike_boost_toggle_cooldown: f64,
 	pub boost_indicator_timer: f64,
 	pub show_gear: bool,
+	pub racer_variant: u32,
 }
 
 impl Fighter {
@@ -102,6 +103,7 @@ impl Fighter {
 			bike_boost_toggle_cooldown: 0.0,
 			boost_indicator_timer: 0.0,
 			show_gear: false,
+			racer_variant: 0,
         }
     }
 

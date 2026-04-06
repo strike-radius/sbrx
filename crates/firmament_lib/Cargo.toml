@@ -1,8 +1,8 @@
 [package]
 name = "firmament_lib"
-version = "0.2.16"
+version = "0.2.17"
 edition = "2021"
-authors = ["IJB <i4n_1@outlook.com>"]
+authors = ["IJB <strike_radius@protonmail.com>"]
 description = "fighterjet component to sbrx"
 license = "AGPL-3.0-only"
 

@@ -718,7 +718,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.16 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.17 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -762,7 +762,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.16 Window created.");
+    println!("sbrx0.2.17 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1020,6 +1020,11 @@ fn main() {
 	            eprintln!("Fatal error loading racer textures: {}", e);
 	            std::process::exit(1);
 	        });
+ 	    let racer2_textures = load_fighter_textures(&mut window, "racer2", sbrx_assets_path.clone())
+ 	        .unwrap_or_else(|e| {
+ 	            eprintln!("Fatal error loading racer2 textures: {}", e);
+ 	            std::process::exit(1);
+ 	        });			
 	    let soldier_textures = load_fighter_textures(&mut window, "soldier", sbrx_assets_path.clone())
 	        .unwrap_or_else(|e| {
 	            eprintln!("Fatal error loading soldier textures: {}", e);
@@ -1098,6 +1103,20 @@ fn main() {
     // --- NEW: Load Group Icon Textures ---
     let mut group_icons: HashMap<FighterType, G2dTexture> = HashMap::new();
     let mut group_icons_selected: HashMap<FighterType, G2dTexture> = HashMap::new();
+	
+    // Racer2 specific icons
+    let racer2_group_icon = load_texture_or_exit(
+        &mut texture_context,
+        &sbrx_assets_path.join("player/racer2/group_icon.png"),
+        &texture_settings,
+        "racer2_group_icon",
+    );
+    let racer2_group_icon_selected = load_texture_or_exit(
+        &mut texture_context,
+        &sbrx_assets_path.join("player/racer2/group_icon_selected.png"),
+        &texture_settings,
+        "racer2_group_icon_selected",
+    );	
 
     let fighter_types_for_assets = ["racer", "soldier", "raptor"];
     let fighter_type_enums = [
@@ -1472,7 +1491,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.16 Starting game loop...");
+    println!("sbrx0.2.17 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1839,7 +1858,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.16 Playing state.");
+                    println!("Transitioning to sbrx0.2.17 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1861,7 +1880,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 16";
+                        let version_text = "v0 . 2 . 17";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1885,15 +1904,14 @@ fn main() {
             GameState::Playing => {
                 if let Some(args) = e.update_args() {
                     let dt = args.dt;
+                    let tex_set = match fighter.fighter_type {
+                        FighterType::Racer => if fighter.racer_variant == 1 { &racer2_textures } else { &racer_textures },
+                        FighterType::Soldier => &soldier_textures,
+                        FighterType::Raptor => &raptor_textures,
+                    };					
 					sbrx_bike.update(dt);
 
                     if !is_paused {
-                        // Ensure textures are up to date with boost state every frame
-                        let tex_set = match fighter.fighter_type {
-                            FighterType::Racer => &racer_textures,
-                            FighterType::Soldier => &soldier_textures,
-                            FighterType::Raptor => &raptor_textures,
-                        };
                         update_current_textures(
                             &fighter,
                             tex_set,
@@ -2664,18 +2682,12 @@ fn main() {
                                     true
                                 };
                                 if moving_towards_mouse {
-                                    let anim_vec = match fighter.fighter_type {
-                                        FighterType::Racer => {
-											if fighter.boost && shift_held {
-												racer_textures.bike_accelerate_boost.as_ref()
-													.unwrap_or(&racer_textures.bike_accelerate)
-											} else {
-												&racer_textures.bike_accelerate
-											}
-                                        },
-                                        FighterType::Soldier => &soldier_textures.bike_accelerate,
-                                        FighterType::Raptor => &raptor_textures.bike_accelerate,
+                                    let anim_vec = if fighter.fighter_type == FighterType::Racer && fighter.boost && shift_held {
+                                        tex_set.bike_accelerate_boost.as_ref().unwrap_or(&tex_set.bike_accelerate)
+                                    } else {
+                                        &tex_set.bike_accelerate
                                     };
+									
                                     if !anim_vec.is_empty() {
                                         bike_accelerate_anim_timer += dt;
                                         let total_duration =
@@ -3858,7 +3870,9 @@ fn main() {
                                     }
 
                                     let tex_set = match fighter.fighter_type {
-                                        FighterType::Racer => &racer_textures,
+										FighterType::Racer => {
+											if fighter.racer_variant == 1 { &racer2_textures } else { &racer_textures }
+										},
                                         FighterType::Soldier => &soldier_textures,
                                         FighterType::Raptor => &raptor_textures,
                                     };
@@ -6356,10 +6370,10 @@ fn main() {
                             // BUG FIX 2: Check if fighter is downed
                             if has_joined && !downed_fighters.contains(ft) {
                                 let is_selected = fighter.fighter_type == *ft;
-                                let icon_to_draw = if is_selected {
-                                    group_icons_selected.get(ft)
+                                let icon_to_draw = if *ft == FighterType::Racer && fighter.racer_variant == 1 {
+                                    if is_selected { Some(&racer2_group_icon_selected) } else { Some(&racer2_group_icon) }
                                 } else {
-                                    group_icons.get(ft)
+                                    if is_selected { group_icons_selected.get(ft) } else { group_icons.get(ft) }
                                 };
 
                                 if let Some(icon) = icon_to_draw {
@@ -7511,6 +7525,12 @@ fn main() {
                     }
 
                     match key {
+                        Key::D0 => {
+                            if !is_paused && fighter.fighter_type == FighterType::Racer {
+                                fighter.racer_variant = if fighter.racer_variant == 0 { 1 } else { 0 };
+                                audio_manager.play_sound_effect("aim").ok(); // Small feedback sound
+                            }
+                        }						
                         Key::G => {
                             fighter.show_gear = !fighter.show_gear;
                         }						
@@ -10158,10 +10178,10 @@ fn main() {
 
                             if has_joined && !downed_fighters.contains(ft) {
                                 let is_selected = fighter.fighter_type == *ft;
-                                let icon_to_draw = if is_selected {
-                                    group_icons_selected.get(ft)
+                                let icon_to_draw = if *ft == FighterType::Racer && fighter.racer_variant == 1 {
+                                    if is_selected { Some(&racer2_group_icon_selected) } else { Some(&racer2_group_icon) }
                                 } else {
-                                    group_icons.get(ft)
+                                    if is_selected { group_icons_selected.get(ft) } else { group_icons.get(ft) }
                                 };
 
                                 if let Some(icon) = icon_to_draw {
@@ -10571,5 +10591,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.16 Game loop ended.");
+    println!("sbrx0.2.17 Game loop ended.");
 }

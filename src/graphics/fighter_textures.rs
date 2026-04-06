@@ -157,25 +157,25 @@ pub fn load_fighter_textures(
     }
 	
     // Load Boost Textures (Only for Racer)
-    let (fwd_boost, backpedal_boost, bike_accelerate_boost, bike_slide_boost) = if fighter_type == "racer" {
-        let fb_path = assets.join("player/racer/fwd_boost.png");
+    let (fwd_boost, backpedal_boost, bike_accelerate_boost, bike_slide_boost) = if fighter_type == "racer" || fighter_type == "racer2" {
+        let fb_path = assets.join(format!("player/{}/fwd_boost.png", fighter_type));
         let fwd_b = Texture::from_path(&mut window.create_texture_context(), &fb_path, Flip::None, &TextureSettings::new()).ok();
  
-        let bb_path = assets.join("player/racer/backpedal_boost.png");
+        let bb_path = assets.join(format!("player/{}/backpedal_boost.png", fighter_type));
         let back_b = Texture::from_path(&mut window.create_texture_context(), &bb_path, Flip::None, &TextureSettings::new()).ok();
  
         let mut bike_acc_b_vec = Vec::new();
-        let bab1_path = assets.join("player/racer/racer_onBike/rcrBikeAccelerate_boost.png");
+        let bab1_path = assets.join(format!("player/{}/racer_onBike/rcrBikeAccelerate_boost.png", fighter_type));
         if let Ok(tex) = Texture::from_path(&mut window.create_texture_context(), &bab1_path, Flip::None, &TextureSettings::new()) {
             bike_acc_b_vec.push(tex);
         }
-        let bab2_path = assets.join("player/racer/racer_onBike/rcrBikeAccelerate2_boost.png");
+        let bab2_path = assets.join(format!("player/{}/racer_onBike/rcrBikeAccelerate2_boost.png", fighter_type));
         if let Ok(tex) = Texture::from_path(&mut window.create_texture_context(), &bab2_path, Flip::None, &TextureSettings::new()) {
             bike_acc_b_vec.push(tex);
         }
         let bike_acc_b = if !bike_acc_b_vec.is_empty() { Some(bike_acc_b_vec) } else { None };
  
-        let bsb_path = assets.join("player/racer/racer_onBike/rcrBikeSlide_boost.png");
+        let bsb_path = assets.join(format!("player/{}/racer_onBike/rcrBikeSlide_boost.png", fighter_type));
         let slide_b = Texture::from_path(&mut window.create_texture_context(), &bsb_path, Flip::None, &TextureSettings::new()).ok();
  
         (fwd_b, back_b, bike_acc_b, slide_b)
