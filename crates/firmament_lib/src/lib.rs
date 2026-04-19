@@ -625,6 +625,7 @@ impl Game {
        let p1: u64 = 73856093;
        let p2: u64 = 19349663;
        let p3: u64 = 83492791;
+       // Match algorithm with sbrx FLATLINE (z treated as 0 for match)
        let seed = (field_id.0 as u64).wrapping_mul(p1)
                 ^ (field_id.1 as u64).wrapping_mul(p2)
                 ^ (field_id.2 as u64).wrapping_mul(p3);

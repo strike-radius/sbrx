@@ -250,6 +250,17 @@ struct Survivor {
 	is_rescued: bool,
 }
 
+/// Calculates difficulty/reward multiplier based on distance from Field(0,0)
+fn get_field_aptitude(field: SbrxFieldId) -> f64 {
+    let dist = field.0.abs().max(field.1.abs());
+    if dist <= 1 {
+        1.0 // Center 3x3 grid (Racetrack + immediate neighbors)
+    } else {
+        // Increases by 0.05 for every "ring" past the first
+        1.0 + (dist - 1) as f64 * 0.05
+    }
+}
+
 fn spawn_particles(particles: &mut Vec<Particle>, pos_x: f64, pos_y: f64, count: usize) {
     // Safety: Global hard cap on particles
     if particles.len() > 2000 { return; }	
@@ -511,14 +522,16 @@ fn award_kill_score(
     points: u32,
     chatbox: &mut ChatBox,
     lvl_up_state: &mut LvlUpState,
-    reason: &str,
+    _reason: &str,
+	aptitude: f64,
 ) {
+	let scaled_points = (points as f64 * aptitude).round() as u32;
     let current_kills = fighter
         .kill_counters
         .entry(fighter.fighter_type)
         .or_insert(0);
-    *current_kills += points;
-    println!("Awarded {} kill score points for {}.", points, reason);
+    *current_kills += scaled_points;
+    println!("Awarded {} kill score points for {}.", scaled_points, aptitude);
 
     let current_level = fighter.levels.entry(fighter.fighter_type).or_insert(1);
     let stat_points = fighter
@@ -675,7 +688,7 @@ fn main() {
     let mut void_tempest_spawned_for_survivors: bool = false;
 
     // Helper function to spawn a random CPU entity for the arena mode
-    fn spawn_random_cpu(line_y: f64, stage: u32) -> CpuEntity {
+    fn spawn_random_cpu(line_y: f64, stage: u32, arena_timer: f64) -> CpuEntity {
         let mut rng = rand::rng();
         // Determine the range of enemies to spawn based on the arena stage
         let max_variant = if stage >= 2 {
@@ -715,10 +728,18 @@ fn main() {
         // Override default spawn positions to fill the entire arena
         new_cpu.x = x;
         new_cpu.y = y;
+		
+        // Arena Aptitude: +10% stats every 10 seconds
+        let arena_aptitude = 1.0 + (arena_timer / 10.0).floor() * 0.10;
+        new_cpu.max_hp *= arena_aptitude;
+        new_cpu.current_hp = new_cpu.max_hp;
+        new_cpu.damage_value *= arena_aptitude;
+        new_cpu.speed *= 1.0 + (arena_aptitude - 1.0) * 0.2;		
+		
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.17 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.18 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -762,7 +783,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.17 Window created.");
+    println!("sbrx0.2.18 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1286,7 +1307,13 @@ fn main() {
     let mut cpu_entities: Vec<CpuEntity> = Vec::new();
     if CPU_ENABLED {
         if cpu_entities.len() < 10 {
-            cpu_entities.push(CpuEntity::new_giant_mantis(line_y));
+			let mut cpu = CpuEntity::new_giant_mantis(line_y);
+			let aptitude = get_field_aptitude(SbrxFieldId(0, 0));
+			cpu.max_hp *= aptitude;
+			cpu.current_hp = cpu.max_hp;
+			cpu.damage_value *= aptitude;
+			cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+			cpu_entities.push(cpu);
         }
     }
     let mut spawned_blood_idol_scores: HashSet<u32> = HashSet::new();
@@ -1384,6 +1411,7 @@ fn main() {
     let mut crickets_sound_sink: Option<Sink> = None;
 	let mut ambient_track_state = AmbientTrackState::Background; // [M] key cycles
     let mut sbrx_map_system = SbrxMapSystem::new("FLATLINE".to_string(), SbrxFieldId(0, 0));
+	let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
     let mut fog_of_war = FogOfWar::new();
     let mut rattlesnakes_spawned_in_field0_score3 = false;
     let mut last_field_id_for_rattlesnake_spawn: Option<SbrxFieldId> = None;
@@ -1491,7 +1519,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.17 Starting game loop...");
+    println!("sbrx0.2.18 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1858,7 +1886,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.17 Playing state.");
+                    println!("Transitioning to sbrx0.2.18 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1880,7 +1908,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 17";
+                        let version_text = "v0 . 2 . 18";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -1987,7 +2015,7 @@ fn main() {
                             }
 
                             if cpu_entities.len() < 10 {
-                                cpu_entities.push(spawn_random_cpu(line_y, endless_arena_stage));
+                                cpu_entities.push(spawn_random_cpu(line_y, endless_arena_stage, endless_arena_timer));
                             }
                         }
 
@@ -2320,6 +2348,11 @@ fn main() {
                                 };
 
                                 wave_manager.apply_modifiers_to_new_cpu(&mut new_cpu);
+								let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+								new_cpu.max_hp *= aptitude;
+								new_cpu.current_hp = new_cpu.max_hp;
+								new_cpu.damage_value *= aptitude;
+								new_cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;								
                                 cpu_entities.push(new_cpu);
                                 wave_manager.notify_enemy_spawned(); // Notify manager a spawn occurred
                             }
@@ -2818,13 +2851,16 @@ fn main() {
                             text: format!("+{}", points_awarded),
                             lifetime: 1.5,
                         });
+						let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                         award_kill_score(
                             &mut fighter,
                             points_awarded,
                             &mut chatbox,
                             &mut lvl_up_state,
                             &format!("completing {} task(s)", tasks_completed),
+							aptitude,
                         );
+						fighter.score = (fighter.score + points_awarded).min(999999);
                     }
 					
 					
@@ -2926,8 +2962,13 @@ fn main() {
                                 .iter()
                                 .find(|e| e.variant == CpuVariant::GiantMantis && !e.is_dead())
                                 .map_or((250.0, 150.0), |m| (m.max_hp, m.speed));
-                            cpu_entities
-                                .push(CpuEntity::new_void_tempest(line_y, base_hp, base_speed));
+							let mut vt = CpuEntity::new_void_tempest(line_y, base_hp, base_speed);
+							let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+							vt.max_hp *= aptitude;
+							vt.current_hp = vt.max_hp;
+							vt.damage_value *= aptitude;
+							vt.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+							cpu_entities.push(vt);
                             void_tempest_spawned_for_survivors = true;
                             chatbox.add_interaction(vec![(
                                 "WARNING: STRONG ENCOUNTER",
@@ -3275,6 +3316,10 @@ fn main() {
                                     .iter()
                                     .any(|e| e.variant == CpuVariant::VoidTempest && !e.is_dead());
                                 let rocketbay_lockdown = is_in_rocketbay && void_tempest_active;
+								
+                                // T-Rex (x1, y0) Lockdown Check
+                                let is_in_nest_field = sbrx_map_system.current_field_id == SbrxFieldId(1, 0);
+                                let t_rex_lockdown = is_in_nest_field && t_rex_is_active;								
 
                                 if fighter.x >= config::boundaries::MAX_X {
                                     let target_field = SbrxFieldId(
@@ -3286,6 +3331,16 @@ fn main() {
                                         if boundary_warning_cooldown <= 0.0 {
                                             chatbox.add_interaction(vec![(
                                                 "DEFEAT THE VOID TEMPEST TO ESCAPE",
+                                                MessageType::Notification,
+                                            )]);
+                                            boundary_warning_cooldown =
+                                                BOUNDARY_WARNING_COOLDOWN_TIME;
+                                        }
+                                    } else if t_rex_lockdown {
+                                        fighter.x = config::boundaries::MAX_X - 10.0;
+                                        if boundary_warning_cooldown <= 0.0 {
+                                            chatbox.add_interaction(vec![(
+                                                "DEFEAT THE T-REX TO ESCAPE",
                                                 MessageType::Notification,
                                             )]);
                                             boundary_warning_cooldown =
@@ -3330,6 +3385,16 @@ fn main() {
                                         if boundary_warning_cooldown <= 0.0 {
                                             chatbox.add_interaction(vec![(
                                                 "DEFEAT THE VOID TEMPEST TO ESCAPE",
+                                                MessageType::Notification,
+                                            )]);
+                                            boundary_warning_cooldown =
+                                                BOUNDARY_WARNING_COOLDOWN_TIME;
+                                        }
+                                    } else if t_rex_lockdown {
+                                        fighter.x = config::boundaries::MIN_X + 10.0;
+                                        if boundary_warning_cooldown <= 0.0 {
+                                            chatbox.add_interaction(vec![(
+                                                "DEFEAT THE T-REX TO ESCAPE",
                                                 MessageType::Notification,
                                             )]);
                                             boundary_warning_cooldown =
@@ -3380,6 +3445,16 @@ fn main() {
                                             boundary_warning_cooldown =
                                                 BOUNDARY_WARNING_COOLDOWN_TIME;
                                         }
+                                    } else if t_rex_lockdown {
+                                        fighter.y = config::boundaries::MAX_Y - 10.0;
+                                        if boundary_warning_cooldown <= 0.0 {
+                                            chatbox.add_interaction(vec![(
+                                                "DEFEAT THE T-REX TO ESCAPE",
+                                                MessageType::Notification,
+                                            )]);
+                                            boundary_warning_cooldown =
+                                                BOUNDARY_WARNING_COOLDOWN_TIME;
+                                        }
                                     } else if fort_silo_ground_restriction
                                         && target_field == SbrxFieldId(-25, 25)
                                     {
@@ -3424,6 +3499,16 @@ fn main() {
                                             boundary_warning_cooldown =
                                                 BOUNDARY_WARNING_COOLDOWN_TIME;
                                         }
+                                    } else if t_rex_lockdown {
+                                        fighter.y = config::boundaries::MIN_Y + 10.0;
+                                        if boundary_warning_cooldown <= 0.0 {
+                                            chatbox.add_interaction(vec![(
+                                                "DEFEAT THE T-REX TO ESCAPE",
+                                                MessageType::Notification,
+                                            )]);
+                                            boundary_warning_cooldown =
+                                                BOUNDARY_WARNING_COOLDOWN_TIME;
+                                        }
                                     } else if fort_silo_ground_restriction
                                         && target_field == SbrxFieldId(-25, 25)
                                     {
@@ -3461,10 +3546,12 @@ fn main() {
                                         dy_field_transition,
                                     );
 
-                                    // --- BUG FIX: Clear entities from previous field to allow new spawns ---
-                                    // This prevents the entity cap from being filled by enemies from the previous field,
-                                    // ensuring field-specific spawns (like Night Reavers) can occur.
+
                                     cpu_entities.clear();
+									
+
+                                    // Refresh aptitude and apply to any immediate field-specific spawns 
+                                    let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);									
 
                                     last_field_entry_point = (fighter.x, fighter.y);
 
@@ -3499,25 +3586,26 @@ fn main() {
                                         let has_night_reavers = cpu_entities
                                             .iter()
                                             .any(|e| e.variant == CpuVariant::NightReaver);
+// main.rs - Rocketbay spawn logic
+
                                         if !has_night_reavers && CPU_ENABLED {
                                             println!(
                                                 "Spawning Night Reavers in ROCKETBAY field x-2 y5"
                                             );
                                             for _ in 0..4 {
                                                 if cpu_entities.len() < 10 {
-                                                    let reaver_x = safe_gen_range(
-                                                        MIN_X,
-                                                        MAX_X,
-                                                        "NightReaver x",
-                                                    );
-                                                    let reaver_y = safe_gen_range(
-                                                        MIN_Y,
-                                                        MAX_Y,
-                                                        "NightReaver y",
-                                                    );
-                                                    cpu_entities.push(CpuEntity::new_night_reaver(
-                                                        reaver_x, reaver_y,
-                                                    ));
+                                                   let reaver_x = safe_gen_range(MIN_X, MAX_X, "NightReaver x");
+                                                   let reaver_y = safe_gen_range(MIN_Y, MAX_Y, "NightReaver y");
+
+                                                   let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+												   
+                                                   let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+												   
+                                                   reaver.max_hp *= aptitude;
+                                                   reaver.current_hp = reaver.max_hp;
+                                                   reaver.damage_value *= aptitude;
+                                                   reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                                   cpu_entities.push(reaver);
                                                 }
                                             }
                                         }
@@ -3631,9 +3719,12 @@ fn main() {
                                                         MAX_Y,
                                                         "LightReaver y",
                                                     );
-                                                    cpu_entities.push(CpuEntity::new_light_reaver(
-                                                        reaver_x, reaver_y,
-                                                    ));
+                                                    let mut reaver = CpuEntity::new_light_reaver(reaver_x, reaver_y);
+                                                    reaver.max_hp *= aptitude;
+                                                    reaver.current_hp = reaver.max_hp;
+                                                    reaver.damage_value *= aptitude;
+                                                    reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                                    cpu_entities.push(reaver);
                                                 }
                                             }
                                             for _ in 0..3 {
@@ -3648,9 +3739,13 @@ fn main() {
                                                         MAX_Y,
                                                         "NightReaver y",
                                                     );
-                                                    cpu_entities.push(CpuEntity::new_night_reaver(
-                                                        reaver_x, reaver_y,
-                                                    ));
+													let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+													let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+													reaver.max_hp *= aptitude;
+													reaver.current_hp = reaver.max_hp;
+													reaver.damage_value *= aptitude;
+													reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+													cpu_entities.push(reaver);
                                                 }
                                             }											
                                         }
@@ -3738,9 +3833,13 @@ fn main() {
                                                         && !e.is_dead()
                                                 })
                                                 .map_or((250.0, 150.0), |m| (m.max_hp, m.speed));
-                                            cpu_entities.push(CpuEntity::new_blood_idol(
-                                                line_y, base_hp, base_speed,
-                                            ));
+                                            let mut spirit = CpuEntity::new_blood_idol(line_y, base_hp, base_speed);
+                                            let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                            spirit.max_hp *= aptitude;
+                                            spirit.current_hp = spirit.max_hp;
+                                            spirit.damage_value *= aptitude;
+                                            spirit.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                            cpu_entities.push(spirit);
                                         }
                                     }
                                     check_and_display_demonic_presence(
@@ -3780,10 +3879,20 @@ fn main() {
                         println!("Spawning a raptor nest in FLATLINE_field.x1y0");
                         let nest = RaptorNest::new();
                         if cpu_entities.len() < 10 {
-                            cpu_entities.push(CpuEntity::new_raptor(nest.x - 75.0, nest.y));
+                                    let mut r1 = CpuEntity::new_raptor(nest.x - 75.0, nest.y);
+                                    r1.max_hp *= aptitude;
+                                    r1.current_hp = r1.max_hp;
+                                    r1.damage_value *= aptitude;
+                                    r1.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(r1);
                         }
                         if cpu_entities.len() < 10 {
-                            cpu_entities.push(CpuEntity::new_raptor(nest.x + 75.0, nest.y));
+                                    let mut r2 = CpuEntity::new_raptor(nest.x + 75.0, nest.y);
+                                    r2.max_hp *= aptitude;
+                                    r2.current_hp = r2.max_hp;
+                                    r2.damage_value *= aptitude;
+                                    r2.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(r2);
                         }
                         raptor_nests.push(nest);
                     }
@@ -3811,20 +3920,29 @@ fn main() {
                             .any(|e| e.variant == CpuVariant::NightReaver);
                         if (!has_light_reavers || !has_night_reavers) && CPU_ENABLED {
                             println!("Spawning Reavers in Fort Silo field x-25 y25");
+							let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                             for _ in 0..3 {
                                 if cpu_entities.len() < 10 {
                                     let reaver_x = safe_gen_range(MIN_X, MAX_X, "LightReaver x");
                                     let reaver_y = safe_gen_range(MIN_Y, MAX_Y, "LightReaver y");
-                                    cpu_entities
-                                        .push(CpuEntity::new_light_reaver(reaver_x, reaver_y));
+									let mut reaver = CpuEntity::new_light_reaver(reaver_x, reaver_y);
+									reaver.max_hp *= aptitude;
+									reaver.current_hp = reaver.max_hp;
+									reaver.damage_value *= aptitude;
+									reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+									cpu_entities.push(reaver);
                                 }
                             }
                             for _ in 0..3 {
                                 if cpu_entities.len() < 10 {
                                     let reaver_x = safe_gen_range(MIN_X, MAX_X, "NightReaver x");
                                     let reaver_y = safe_gen_range(MIN_Y, MAX_Y, "NightReaver y");
-                                    cpu_entities
-                                        .push(CpuEntity::new_night_reaver(reaver_x, reaver_y));
+									let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+									reaver.max_hp *= aptitude;
+									reaver.current_hp = reaver.max_hp;
+									reaver.damage_value *= aptitude;
+									reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+									cpu_entities.push(reaver);
                                 }
                             }
                         }
@@ -4195,10 +4313,16 @@ fn main() {
                             && !wave_manager.is_active()
                         {
                             println!("sbrx Field changed to non-(0,0) field {:?}. Spawning 3 rattlesnakes.", sbrx_map_system.current_field_id);
+							let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                             for _ in 0..3 {
                                 if CPU_ENABLED {
                                     if cpu_entities.len() < 10 {
-                                        cpu_entities.push(CpuEntity::new_rattlesnake(line_y));
+                                        let mut snake = CpuEntity::new_rattlesnake(line_y);
+                                        snake.max_hp *= aptitude;
+                                        snake.current_hp = snake.max_hp;
+                                        snake.damage_value *= aptitude;
+                                        snake.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                        cpu_entities.push(snake);
                                     }
                                 }
                             }
@@ -4212,9 +4336,15 @@ fn main() {
                     {
                         if CPU_ENABLED && !wave_manager.is_active() && !racetrack_active {
                             println!("Spawning 3 rattlesnakes due to score 3 in sbrx field (0,0).");
+							let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                             for _ in 0..3 {
                                 if cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_rattlesnake(line_y));
+                                    let mut snake = CpuEntity::new_rattlesnake(line_y);
+                                    snake.max_hp *= aptitude;
+                                    snake.current_hp = snake.max_hp;
+                                    snake.damage_value *= aptitude;
+                                    snake.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(snake);
                                 }
                             }
                             rattlesnakes_spawned_in_field0_score3 = true;
@@ -4235,7 +4365,13 @@ fn main() {
                                         score_tier_to_check
                                     );
                                     if cpu_entities.len() < 10 {
-                                        cpu_entities.push(CpuEntity::new_giant_rattlesnake(line_y));
+                                        let mut cpu = CpuEntity::new_giant_rattlesnake(line_y);
+                                        let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                        cpu.max_hp *= aptitude;
+                                        cpu.current_hp = cpu.max_hp;
+                                        cpu.damage_value *= aptitude;
+                                        cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                        cpu_entities.push(cpu);
                                     }
                                 }
                                 spawned_giant_rattlesnake_scores.insert(score_tier_to_check);
@@ -4303,8 +4439,8 @@ fn main() {
                                 );
 
                                 // --- Passive Defense Check (Auto-Block / Auto-Dodge) ---
-                                // Condition: Attack wasn't manually blocked, player isn't invincible, and NOT vulnerable/broken
-                                if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken {
+                                // Condition: Attack wasn't manually blocked, player isn't invincible, NOT vulnerable/broken, AND enemy isn't stunned
+                                if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken && cpu_entity.stun_timer <= 0.0 {
                                     let mut rng = rand::rng();
                                     let roll: f64 = rng.random();
                                     
@@ -4531,7 +4667,7 @@ fn main() {
                                     };
 									
                                     if endless_arena_mode_active {
-                                        arena_kill_count += score_value; 
+                                        arena_kill_count = (arena_kill_count + score_value).min(999999);
                                         // Milestones for every 25 points
                                         let current_milestone = arena_kill_count / 25;
                                         if current_milestone > last_arena_milestone && current_milestone > 0 {
@@ -4552,7 +4688,7 @@ fn main() {
                                         }										
                                     }									
                                     
-                                    fighter.score = (fighter.score + score_value).min(999);
+                                    fighter.score = (fighter.score + score_value).min(999999);
 
                                     let current_kills = fighter
                                         .kill_counters
@@ -4592,6 +4728,17 @@ fn main() {
                                     if !downed_fighters.is_empty() {
                                         revival_kill_score += 1;
                                     }
+
+                                    let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                    award_kill_score(
+                                        &mut fighter,
+                                        score_value,
+                                        &mut chatbox,
+                                        &mut lvl_up_state,
+                                        "killing an enemy",
+                                        aptitude,
+									);
+									
                                     fighter.current_hp =
                                         (fighter.current_hp + 25.0).min(fighter.max_hp);
                                     fighter.fuel = (fighter.fuel + FUEL_REPLENISH_AMOUNT)
@@ -4637,8 +4784,16 @@ fn main() {
 
                             // --- Phase 3: Mutate the cpu_entities list safely ---
                             for &index in &cpus_to_respawn {
+                                let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);								
                                 if let Some(cpu) = cpu_entities.get_mut(index) {
                                     cpu.respawn(line_y);
+									
+                                    // Apply aptitude scaling to newly spawned/respawned CPU stats
+                                    cpu.max_hp *= aptitude;
+                                    cpu.current_hp = cpu.max_hp;
+                                    cpu.damage_value *= aptitude;
+                                    // Speed scales more slowly to keep gameplay manageable (20% of aptitude growth)
+                                    cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;									
                                 }
                             }
 
@@ -4673,7 +4828,13 @@ fn main() {
                                 );
                                 t_rex_is_active = false;
                                 if CPU_ENABLED && cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_giant_mantis(line_y));
+									let mut cpu = CpuEntity::new_giant_mantis(line_y);
+									let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+									cpu.max_hp *= aptitude;
+									cpu.current_hp = cpu.max_hp;
+									cpu.damage_value *= aptitude;
+									cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+									cpu_entities.push(cpu);
                                 }
                             }
                         }
@@ -4768,8 +4929,13 @@ fn main() {
                                     println!("Spawning Night Reaver in Rocketbay.");
                                     let reaver_x = safe_gen_range(MIN_X, MAX_X, "NightReaver x");
                                     let reaver_y = safe_gen_range(MIN_Y, MAX_Y, "NightReaver y");
-                                    cpu_entities
-                                        .push(CpuEntity::new_night_reaver(reaver_x, reaver_y));
+                                    let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+                                    let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                    reaver.max_hp *= aptitude;
+                                    reaver.current_hp = reaver.max_hp;
+                                    reaver.damage_value *= aptitude;
+                                    reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(reaver);
                                     night_reaver_spawn_timer = 0.0;
                                     next_night_reaver_spawn =
                                         safe_gen_range(3.0, 6.0, "Next Night Reaver spawn time");
@@ -6687,6 +6853,26 @@ fn main() {
                             g,
                         )
                         .unwrap_or_else(|e| eprintln!("Failed to draw field text: {:?}", e));
+						
+                        // --- ENEMY APTITUDE UI ---
+                        let base_aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                        let aptitude = if endless_arena_mode_active {
+                            base_aptitude + (endless_arena_timer / 10.0).floor() * 0.10
+                        } else {
+                            base_aptitude
+                        };
+                        let apt_text = format!("ENEMY APTITUDE: {}%", (aptitude * 100.0) as u32);
+                        let apt_color = if aptitude > 1.0 { [1.0, 0.27, 0.0, 1.0] } else { [1.0, 1.0, 1.0, 1.0] };
+ 
+                        text(
+                            apt_color,
+                            14,
+                            &apt_text,
+                            &mut glyphs,
+                            oc.transform.trans(10.0, field_text_y_baseline_sbrx + 20.0),
+                            g,
+                        ).ok();						
+						
                         if FOG_OF_WAR_ENABLED {
                             if fog_of_war.is_fog_enabled(sbrx_map_system.current_field_id) {
                                 let (explored, total, percentage) = fog_of_war
@@ -7627,9 +7813,13 @@ fn main() {
                                                 BUNKER_ORIGIN_Y + BUNKER_HEIGHT - 50.0,
                                                 "NightReaver y",
                                             );
-                                            cpu_entities.push(CpuEntity::new_night_reaver(
-                                                reaver_x, reaver_y,
-                                            ));
+											let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+											let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+											reaver.max_hp *= aptitude;
+											reaver.current_hp = reaver.max_hp;
+											reaver.damage_value *= aptitude;
+											reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+											cpu_entities.push(reaver);
                                         }
                                     }
                                 }
@@ -8522,16 +8712,11 @@ fn main() {
                                     }
 
                                     chatbox.add_interaction(vec![
-										("-GRAND COMMANDER-", MessageType::Info), 
-										("SOLDIER, YOU AND THESE FIGHTERS \nMADE IT JUST IN TIME.", MessageType::Dialogue),
-
-										("-SOLDIER-", MessageType::Info), 
-										("WHAT HAPPENED HERE?", MessageType::Dialogue),
-
+									
 										("-GRAND COMMANDER-", MessageType::Info),  
-										("WE SENT UP A COMMUNICATION SIGNAL TO FIND 
-										ALIEN LIFE. NOW WE'RE BEING EXTERMINATED 
-										BY THEM.", MessageType::Dialogue),
+										("YOU ALL GOT HERE JUST IN TIME. WE MADE
+										CONTACT WITH A HOSTILE ALIEN RACE AND
+										NOW WE'RE BEING EXTERMINATED!", MessageType::Dialogue),									
 																	   
 										("-RACER-", MessageType::Info), 
 										("WHAT CAN WE DO?", MessageType::Dialogue),
@@ -8543,26 +8728,15 @@ fn main() {
 										FUEL TANKS HAVE ALL BEEN DESTROYED.", MessageType::Dialogue),
 
 										("-SOLDIER-", MessageType::Info), 
-										("I SAW A FUEL STATION AT THE SABERCROSS 
-										TRACK I NEARLY DIED ON. THAT WOULD DO 
+										("I SAW A FUEL STATION AT THE NEAR BY
+										SABERCROSS TRACK. IT SHOULD DO 
 										THE JOB.", MessageType::Dialogue),
 
-
 										("-GRAND COMMANDER-", MessageType::Info), 
-										("GO AT ONCE. I WILL SEND YOU THE MISSILE  
-										RANGE COORDINATES ONCE YOU'RE THERE.", MessageType::Dialogue),
-
-										("-SOLDIER-", MessageType::Info), 
-										("UNDERSTOOD. WE ALSO BROUGHT SURVIVORS FROM
-										THE ROCKETBAY.", MessageType::Dialogue),	
-
-										("-GRAND COMMANDER-", MessageType::Info), 
-										("NICE WORK. ONCE WE GET THIS PLACE BACK
-										IN ORDER, I'LL SEND OUT REINFORCEMENTS.", MessageType::Dialogue),											
-
-										("-RAPTOR-", MessageType::Info), 
-										("GRRR.", MessageType::Dialogue),																												 							  
-									]);
+										("GO AT ONCE! I WILL SEND YOU THE MISSILE  
+										RANGE COORDINATES ONCE YOU FUEL UP.", MessageType::Dialogue),
+																											 							  
+									]);	
 								   
                                 } else if !is_paused && show_fort_silo_survivor_prompt {
                                     fort_silo_survivor.interaction_triggered = true;
@@ -8737,7 +8911,9 @@ fn main() {
                                         .entry(FighterType::Soldier)
                                         .or_insert(SOLDIER_LVL1_STATS.defense.hp);
                                     soldier_visible = false;
-                                    task_system.populate_taskbar2();
+                                    task_system.populate_taskbar2();									
+									
+									
                                     chatbox.add_interaction(vec![
                                         ("-SOLDIER-", MessageType::Info), 
 										("RACER, MY SQUAD WAS AMBUSHED BY RAPTORS. 
@@ -8749,6 +8925,8 @@ fn main() {
                                         ("KEY F1 AND F2 TO SWITCH FIGHTERS", MessageType::Notification),
 										("SOLDIER HAS JOINED THE GROUP KEY F1 AND F2 TO SWITCH FIGHTERS", MessageType::Warning),
                                     ]);
+									
+									
                                 } else if let Some(area_state) = &current_area.clone() {
                                     // Clone to avoid borrow issues
                                     if area_state.is_player_at_world_exit(fighter.x, fighter.y)
@@ -8989,11 +9167,13 @@ fn main() {
                                                             BUNKER_ORIGIN_Y + BUNKER_HEIGHT - 50.0,
                                                             "NightReaver y",
                                                         );
-                                                        cpu_entities.push(
-                                                            CpuEntity::new_night_reaver(
-                                                                reaver_x, reaver_y,
-                                                            ),
-                                                        );
+                                                        let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+                                                        let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                                        reaver.max_hp *= aptitude;
+                                                        reaver.current_hp = reaver.max_hp;
+                                                        reaver.damage_value *= aptitude;
+                                                        reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                                        cpu_entities.push(reaver);
                                                     }
                                                 }
                                             }
@@ -9016,9 +9196,13 @@ fn main() {
                                                         BUNKER_ORIGIN_Y + BUNKER_HEIGHT - 50.0,
                                                         "RazorFiend y",
                                                     );
-                                                    cpu_entities.push(CpuEntity::new_razor_fiend(
-                                                        fiend_x, fiend_y,
-                                                    ));
+                                                    let mut boss = CpuEntity::new_razor_fiend(fiend_x, fiend_y);
+                                                    let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+                                                    boss.max_hp *= aptitude;
+                                                    boss.current_hp = boss.max_hp;
+                                                    boss.damage_value *= aptitude;
+                                                    boss.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                                    cpu_entities.push(boss);
                                                     chatbox.add_interaction(vec![(
                                                         "DANGER! DEADLY ENCOUNTER",
                                                         MessageType::Warning,
@@ -9074,12 +9258,14 @@ fn main() {
                                         }
 
                                         if task_system.mark_fighter_jet_as_boarded() {
+											let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                                             award_kill_score(
                                                 &mut fighter,
                                                 10,
                                                 &mut chatbox,
                                                 &mut lvl_up_state,
                                                 "completing BOARD THE FIGHTERJET task",
+												aptitude,
                                             );
                                         }
 
@@ -9124,9 +9310,13 @@ fn main() {
                                                 "raptor y",
                                             );
                                             if cpu_entities.len() < 10 {
-                                                cpu_entities.push(CpuEntity::new_raptor(
-                                                    raptor_x, raptor_y,
-                                                ));
+												let mut raptor = CpuEntity::new_raptor(raptor_x, raptor_y);
+												let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+												raptor.max_hp *= aptitude;
+												raptor.current_hp = raptor.max_hp;
+												raptor.damage_value *= aptitude;
+												raptor.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+												cpu_entities.push(raptor);
                                             }
                                         }
                                     }
@@ -9196,9 +9386,13 @@ fn main() {
                                                         BUNKER_ORIGIN_Y + BUNKER_HEIGHT - 50.0,
                                                         "NightReaver y",
                                                     );
-                                                    cpu_entities.push(CpuEntity::new_night_reaver(
-                                                        reaver_x, reaver_y,
-                                                    ));
+													let mut reaver = CpuEntity::new_night_reaver(reaver_x, reaver_y);
+													let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+													reaver.max_hp *= aptitude;
+													reaver.current_hp = reaver.max_hp;
+													reaver.damage_value *= aptitude;
+													reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+													cpu_entities.push(reaver);
                                                 }
                                             }
                                         }
@@ -9379,6 +9573,7 @@ fn main() {
                         continue;
                     }
                     println!("Resuming game from last field entry point after party wipe.");
+		
 					
                     // BUG FIX: Reset lmb_held on respawn to prevent stuck melee strike
                     lmb_held = false;
@@ -9408,6 +9603,7 @@ fn main() {
                         last_field_entry_point
                     };
                     fighter = Fighter::new(spawn_point.0, spawn_point.1);
+					fighter.score = saved_score;
 
                     fighter.score = saved_score;
                     fighter.kill_counters = saved_kill_counters;
@@ -9514,10 +9710,22 @@ fn main() {
                     // --- END FIX ---
 
                     cpu_entities.clear();
+                    let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
+ 
                     if CPU_ENABLED {
-                        if cpu_entities.len() < 10 {
-                            // Add a default enemy to kickstart the spawn logic in the update loop.
-                            cpu_entities.push(CpuEntity::new_giant_mantis(line_y));
+                        if endless_arena_mode_active {
+                            if cpu_entities.len() < 10 {
+                                cpu_entities.push(spawn_random_cpu(line_y, endless_arena_stage, endless_arena_timer));
+                            }
+                        } else {
+                            if cpu_entities.len() < 10 {
+                                let mut cpu = CpuEntity::new_giant_mantis(line_y);
+                                cpu.max_hp *= aptitude;
+                                cpu.current_hp = cpu.max_hp;
+                                cpu.damage_value *= aptitude;
+                                cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                cpu_entities.push(cpu);
+                            }
                         }
                     }
 
@@ -9533,7 +9741,12 @@ fn main() {
                         if cpu_entities.len() < 10 {
                             let t_rex_x = safe_gen_range(MIN_X, MAX_X, "T-Rex respawn x");
                             let t_rex_y = safe_gen_range(MIN_Y, MAX_Y, "T-Rex respawn y");
-                            cpu_entities.push(CpuEntity::new_t_rex(t_rex_x, t_rex_y));
+                            let mut t_rex = CpuEntity::new_t_rex(t_rex_x, t_rex_y);
+                            t_rex.max_hp *= aptitude;
+                            t_rex.current_hp = t_rex.max_hp;
+                            t_rex.damage_value *= aptitude;
+                            t_rex.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                            cpu_entities.push(t_rex);
                             println!("Respawned T-Rex after party wipe in field x1 y0");
                         }
                     }
@@ -9548,8 +9761,12 @@ fn main() {
                             .any(|e| e.variant == CpuVariant::VoidTempest);
                         if !void_tempest_exists && cpu_entities.len() < 10 {
                             let (base_hp, base_speed) = (250.0, 150.0);
-                            cpu_entities
-                                .push(CpuEntity::new_void_tempest(line_y, base_hp, base_speed));
+                            let mut vt = CpuEntity::new_void_tempest(line_y, base_hp, base_speed);
+                            vt.max_hp *= aptitude;
+                            vt.current_hp = vt.max_hp;
+                            vt.damage_value *= aptitude;
+                            vt.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                            cpu_entities.push(vt);
                             println!("Respawned VoidTempest after party wipe");
                         }
                     }
@@ -9571,7 +9788,12 @@ fn main() {
                             );
                             for _ in 0..3 {
                                 if cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_rattlesnake(line_y));
+                                    let mut snake = CpuEntity::new_rattlesnake(line_y);
+                                    snake.max_hp *= aptitude;
+                                    snake.current_hp = snake.max_hp;
+                                    snake.damage_value *= aptitude;
+                                    snake.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(snake);
                                 }
                             }
                         }
@@ -9588,8 +9810,12 @@ fn main() {
                             .any(|e| e.variant == CpuVariant::BloodIdol);
                         if !blood_idol_exists && cpu_entities.len() < 10 {
                             let (base_hp, base_speed) = (250.0, 150.0);
-                            cpu_entities
-                                .push(CpuEntity::new_blood_idol(line_y, base_hp, base_speed));
+                            let mut spirit = CpuEntity::new_blood_idol(line_y, base_hp, base_speed);
+                            spirit.max_hp *= aptitude;
+                            spirit.current_hp = spirit.max_hp;
+                            spirit.damage_value *= aptitude;
+                            spirit.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                            cpu_entities.push(spirit);
                             println!("Respawned BloodIdol after party wipe in fog field");
                         }
                     }
@@ -9604,7 +9830,12 @@ fn main() {
                                     .iter()
                                     .any(|e| e.variant == CpuVariant::GiantRattlesnake);
                                 if !giant_rattlesnake_exists && cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_giant_rattlesnake(line_y));
+                                    let mut cpu = CpuEntity::new_giant_rattlesnake(line_y);
+                                    cpu.max_hp *= aptitude;
+                                    cpu.current_hp = cpu.max_hp;
+                                    cpu.damage_value *= aptitude;
+                                    cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(cpu);
                                     println!("Respawned Giant Rattlesnake after party wipe for score tier {}", score_tier);
                                     break; // Only spawn one
                                 }
@@ -9629,7 +9860,12 @@ fn main() {
                                     "raptor respawn y",
                                 );
                                 if cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_raptor(raptor_x, raptor_y));
+                                    let mut raptor = CpuEntity::new_raptor(raptor_x, raptor_y);
+                                    raptor.max_hp *= aptitude;
+                                    raptor.current_hp = raptor.max_hp;
+                                    raptor.damage_value *= aptitude;
+                                    raptor.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(raptor);
                                 }
                             }
                         }
@@ -9639,6 +9875,7 @@ fn main() {
                         && !task_system.is_task_complete("CLEAR RAPTOR NEST: FIELD[X1 Y0]")
                         && CPU_ENABLED
                     {
+						let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
                         // Check if there's a raptor nest in the field
                         if !raptor_nests.is_empty() {
                             println!(
@@ -9646,10 +9883,20 @@ fn main() {
                             );
                             if let Some(nest) = raptor_nests.first() {
                                 if cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_raptor(nest.x - 75.0, nest.y));
+                                    let mut r1 = CpuEntity::new_raptor(nest.x - 75.0, nest.y);
+                                    r1.max_hp *= aptitude;
+                                    r1.current_hp = r1.max_hp;
+                                    r1.damage_value *= aptitude;
+                                    r1.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(r1);
                                 }
                                 if cpu_entities.len() < 10 {
-                                    cpu_entities.push(CpuEntity::new_raptor(nest.x + 75.0, nest.y));
+                                    let mut r2 = CpuEntity::new_raptor(nest.x + 75.0, nest.y);
+                                    r2.max_hp *= aptitude;
+                                    r2.current_hp = r2.max_hp;
+                                    r2.damage_value *= aptitude;
+                                    r2.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                    cpu_entities.push(r2);
                                 }
                             }
                         }
@@ -10340,15 +10587,30 @@ fn main() {
                         key_a_pressed = false;
                         key_d_pressed = false;
                         block_system.deactivate();
+						
+                        // Apply aptitude to CPUs in the landing field immediately
+                        let aptitude = get_field_aptitude(target_sbrx_field_for_player);
+                        for cpu in &mut cpu_entities {
+                            cpu.max_hp *= aptitude;
+                            cpu.current_hp = cpu.max_hp;
+                            cpu.damage_value *= aptitude;
+                            cpu.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                        }						
 
                         // Spawn Light Reavers when landing at Fort Silo from Firmament
                         if target_sbrx_field_for_player == SbrxFieldId(-25, 25) && CPU_ENABLED {
                             println!("Spawning Light Reavers in Fort Silo field x-25 y25 (from Firmament landing)");
                             cpu_entities.clear(); // Clear any existing entities first
+							let aptitude = get_field_aptitude(target_sbrx_field_for_player);
                             for _ in 0..2 {
                                 let reaver_x = safe_gen_range(MIN_X, MAX_X, "LightReaver x");
                                 let reaver_y = safe_gen_range(MIN_Y, MAX_Y, "LightReaver y");
-                                cpu_entities.push(CpuEntity::new_light_reaver(reaver_x, reaver_y));
+                                let mut reaver = CpuEntity::new_light_reaver(reaver_x, reaver_y);
+                                reaver.max_hp *= aptitude;
+                                reaver.current_hp = reaver.max_hp;
+                                reaver.damage_value *= aptitude;
+                                reaver.speed *= 1.0 + (aptitude - 1.0) * 0.2;
+                                cpu_entities.push(reaver);
                             }
                         }
 						
@@ -10591,5 +10853,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.17 Game loop ended.");
+    println!("sbrx0.2.18 Game loop ended.");
 }

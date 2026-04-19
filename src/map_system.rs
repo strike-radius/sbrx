@@ -1,7 +1,6 @@
-// src/map_system.rs - Updated MapSystem to store field colors
+// src/map_system.rs 
 
-use rand::Rng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -50,10 +49,15 @@ impl MapSystem {
             return (self.origin_ground_color, self.origin_sky_color);
         }
 
-        // Use field coordinates as seed for consistent colors per field
-        // This ensures the same field always gets the same colors
-        let seed =
-            (self.current_field_id.0.wrapping_mul(31) + self.current_field_id.1).abs() as u64;
+        // Match algorithm with firmament_lib FIRMAMENT
+        let p1: u64 = 73856093;
+        let p2: u64 = 19349663;
+        let p3: u64 = 83492791; // Consistent with 3D hash
+
+        let seed = (self.current_field_id.0 as u64).wrapping_mul(p1)
+                 ^ (self.current_field_id.1 as u64).wrapping_mul(p2)
+                 ^ (0u64).wrapping_mul(p3); // Z is implicitly 0 on the ground
+				 
         let mut field_rng = rand::rngs::StdRng::seed_from_u64(seed);
 
         // Ground: limit to 25%(darker) to 75%(lighter) on the grayscale scaling
@@ -93,5 +97,3 @@ impl MapSystem {
     }
 }
 
-// Add this import to the top of main.rs if not already present:
-// use rand::SeedableRng;

@@ -368,8 +368,9 @@ impl Fighter {
         // Create seven segment display with appropriate dimensions
         let display = SevenSegmentDisplay::new(20.0, 30.0, 7.5); // 50% of previous size (was 40.0, 60.0, 15.0)
 
+		let digit_count = 6;
         // Calculate total width of display (3 digits plus spacing)
-        let display_width = (display.segment_width + display.spacing) * 3.0;
+        let display_width = (display.segment_width + display.spacing) * digit_count as f64;
 
         // Fixed position for the score (bottom left corner)
         let base_x = 20.0; // Small margin from left edge
@@ -390,7 +391,7 @@ impl Fighter {
 
         // Format score with leading zeros and draw each digit
         let kill_count = self.kill_counters.get(&self.fighter_type).unwrap_or(&0);
-        let score_str = format!("{:03}", kill_count.min(&999));
+        let score_str = format!("{:03}", kill_count.min(&999999));
         let digits: Vec<u32> = score_str
             .chars()
             .map(|c| c.to_digit(10).unwrap_or(0))
@@ -584,7 +585,7 @@ impl Fighter {
         };
 
         let x = 1.0;
-        let y = 50.0; // Positioned below score
+        let y = 65.0; // Positioned below score
 
         // Background
         rectangle(
