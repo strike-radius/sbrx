@@ -15,3 +15,4 @@ pub mod shoot;
 pub mod star;
 pub mod strike;
 pub mod track;
+pub mod cpu_racer;

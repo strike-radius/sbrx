@@ -87,6 +87,7 @@ use entities::pulse_orb::PulseOrb;
 use entities::raptor_nest::RaptorNest;
 use entities::sbrx_bike::SbrxBike;
 use entities::shoot::Shoot;
+use entities::cpu_racer::CpuRacer;
 use entities::star::Star;
 use entities::strike::Strike;
 use entities::track::Track;
@@ -325,8 +326,10 @@ fn handle_melee_strike<'a>(
     frontal_strike_is_special: &mut bool,
     combo_finisher_slash_count: &mut u32,
     cpu_entities: &mut Vec<CpuEntity>,
+	cpu_racers: &mut Vec<CpuRacer>,
     damage_texts: &mut Vec<DamageText>,
 	is_paused: bool,
+	current_field: SbrxFieldId,
 ) {
     let (mut wmx, mut wmy) = screen_to_world(camera, mouse_x, mouse_y);
     let dx = wmx - fixed_crater.x;
@@ -501,6 +504,137 @@ fn handle_melee_strike<'a>(
                     }
                 }
             }
+			
+            if current_field == SbrxFieldId(0, 0) {
+                let mut r_point_hit_applied = false;
+                for cr in cpu_racers.iter_mut() {
+                    if cr.is_crashed { continue; }
+                    let mut total_damage_this_cr = 0.0;
+                    let mut was_point_hit = false;
+                    let mut was_frontal_hit = false;
+ 
+                    if !r_point_hit_applied {
+                        let sdx = wmx - cr.x;
+                        let sdy = wmy - cr.y;
+                        if (sdx * sdx + sdy * sdy).sqrt() < COLLISION_THRESHOLD {
+                            total_damage_this_cr += point_damage;
+                            was_point_hit = true;
+                            r_point_hit_applied = true;
+                        }
+                    }
+ 
+                    if !was_point_hit {
+                        let dist_sq_from_player = (cr.x - fighter.x).powi(2) + (cr.y - fighter.y).powi(2);
+                        if dist_sq_from_player <= fixed_crater.radius.powi(2) {
+                            let mouse_vec_x = wmx - fighter.x;
+                            let mouse_vec_y = wmy - fighter.y;
+                            let enemy_vec_x = cr.x - fighter.x;
+                            let enemy_vec_y = cr.y - fighter.y;
+                            let dot_product = mouse_vec_x * enemy_vec_x + mouse_vec_y * enemy_vec_y;
+ 
+                            if dot_product > 0.0 {
+                                total_damage_this_cr += frontal_damage;
+                                was_frontal_hit = true;
+                            }
+                        }
+                    }
+ 
+                    if total_damage_this_cr > 0.0 {
+                        cr.current_hp -= total_damage_this_cr;
+                        
+                        if was_point_hit && result.finisher_hit_count < 5 && fighter.fighter_type == FighterType::Racer {
+                            combo_system.racer_combo_hit_connected = true;
+                        }
+ 
+                        let text_color = if fighter.invincible_timer > 1.0 {
+                            [0.7, 1.0, 0.0, 1.0]
+                        } else if was_point_hit && result.is_combo_finisher {
+                            [0.0, 1.0, 0.0, 1.0]
+                        } else if was_point_hit {
+                            [1.0, 1.0, 1.0, 1.0]
+                        } else {
+                            [0.8, 0.8, 0.8, 1.0]
+                        };
+ 
+                        if damage_texts.len() < 100 {
+                            damage_texts.push(DamageText {
+                                text: format!("{:.0}", total_damage_this_cr),
+                                x: cr.x,
+                                y: cr.y - 50.0,
+                                color: text_color,
+                                lifetime: 0.25,
+                            });
+                        }
+ 
+                        if cr.current_hp <= 0.0 {
+                            cr.current_hp = 0.0;
+                            cr.is_crashed = true;
+                            cr.state = RacerState::OnFoot;
+							// Reset AI attacking
+                            cr.is_attacking = false;
+                            cr.stun_timer = 1.0;
+ 
+                            let kx = cr.x - wmx;
+                            let ky = cr.y - wmy;
+                            let angle = ky.atan2(kx);
+ 
+                            let force = 800.0;
+                            cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+                            cr.knockback_duration = 0.4;
+ 
+							cr.bike_x = cr.x;
+							cr.bike_y = cr.y;
+							let bike_angle = angle + 0.5;
+							cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+							cr.bike_knockback_duration = 0.5;							
+                        } else {
+                            if was_point_hit {
+                                if result.knockback {
+                                    let kx = cr.x - wmx;
+                                    let ky = cr.y - wmy;
+                                    let k_dist = (kx * kx + ky * ky).sqrt();
+                                    if k_dist > 0.0 {
+                                        let norm_kx = kx / k_dist;
+                                        let norm_ky = ky / k_dist;
+                                        cr.knockback_velocity = Vec2d::new(norm_kx * result.knockback_force, norm_ky * result.knockback_force);
+                                        cr.knockback_duration = 0.1;
+                                    }
+                                }
+ 
+                                if result.apply_stun {
+                                    if result.finisher_hit_count == 3 {
+                                        cr.stun_timer = 1.0;
+                                        damage_texts.push(DamageText {
+                                            text: "STUN".to_string(),
+                                            x: cr.x,
+                                            y: cr.y - 90.0,
+                                            color: [1.0, 1.0, 1.0, 1.0],
+                                            lifetime: 0.5,
+                                        });
+                                    } else if result.finisher_hit_count == 5 {
+                                        cr.stun_timer = 2.0;
+                                        if fighter.fighter_type == FighterType::Racer {
+                                            fighter.invincible_timer = 2.5;
+                                        }
+                                    }
+                                }
+                            } else if was_frontal_hit && result.is_combo_finisher {
+                                let frontal_knockback_force = result.knockback_force / 2.0;
+                                let kx = cr.x - wmx;
+                                let ky = cr.y - wmy;
+                                let k_dist = (kx * kx + ky * ky).sqrt();
+                                if k_dist > 0.0 {
+                                    let norm_kx = kx / k_dist;
+                                    let norm_ky = ky / k_dist;
+                                    cr.knockback_velocity = Vec2d::new(norm_kx * frontal_knockback_force, norm_ky * frontal_knockback_force);
+                                    cr.knockback_duration = 0.1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }			
+			
             // Racer ATOMIC-STATE: grant if 5th strike fires and any of strikes 1-4 connected
             if result.finisher_hit_count == 5
                 && fighter.fighter_type == FighterType::Racer
@@ -739,7 +873,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.18 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.19 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -783,7 +917,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.18 Window created.");
+    println!("sbrx0.2.19 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1269,10 +1403,13 @@ fn main() {
     let mut sbrx_bike = SbrxBike::new(line_y);	
 	
     // Use fixed spawn point for Racetrack field (0, 0)
-    let mut fighter = Fighter::new(RACETRACK_SPAWN_POINT.0, RACETRACK_SPAWN_POINT.1);
+    let mut fighter = Fighter::new(RACETRACK_SPAWN_POINT.0, RACETRACK_SPAWN_POINT.1);	
     sbrx_bike.x = fighter.x + 100.0;
     sbrx_bike.y = fighter.y;	
     let mut lvl_up_state = LvlUpState::None;
+	
+    let mut cpu_racers: Vec<CpuRacer> = Vec::new();
+    cpu_racers.push(CpuRacer::new(RACETRACK_SPAWN_POINT.0, RACETRACK_SPAWN_POINT.1 - 150.0));	
 
     // Create the map of mutable stats for each fighter
     let mut fighter_stats_map: HashMap<FighterType, combat::stats::Stats> = HashMap::new();
@@ -1519,7 +1656,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.18 Starting game loop...");
+    println!("sbrx0.2.19 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -1886,7 +2023,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.18 Playing state.");
+                    println!("Transitioning to sbrx0.2.19 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -1908,7 +2045,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 18";
+                        let version_text = "v0 . 2 . 19";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -2472,8 +2609,10 @@ fn main() {
                                         &mut frontal_strike_is_special,
                                         &mut combo_finisher_slash_count,
                                         &mut cpu_entities,
+										&mut cpu_racers,
                                         &mut damage_texts,
 										is_paused,
+										sbrx_map_system.current_field_id,
                                     );
                                     melee_rapid_fire_timer = MELEE_RAPID_FIRE_RATE;
                                 }
@@ -2527,9 +2666,11 @@ fn main() {
                     shoot.update(
                         dt,
                         &mut cpu_entities,
+						&mut cpu_racers,
                         &mut fighter,
                         &mut damage_texts,
                         is_paused,
+						sbrx_map_system.current_field_id,
                     );
 
                     if fighter.state == RacerState::OnBike && !is_paused {
@@ -2630,9 +2771,9 @@ fn main() {
 							
                         if fighter.state == RacerState::OnBike {
                             let bike_speed = match fighter.fighter_type {
-                                FighterType::Racer => BIKE_SPEED,
-                                FighterType::Raptor => BIKE_SPEED * 0.75,
-                                FighterType::Soldier => BIKE_SPEED * 0.5,
+                                FighterType::Racer => BIKE_SPEED + (fighter.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0),
+                                FighterType::Raptor => BIKE_SPEED * 0.75 + (fighter.run_speed - RAPTOR_LVL1_STATS.speed.run_speed).max(0.0),
+                                FighterType::Soldier => BIKE_SPEED * 0.5 + (fighter.run_speed - SOLDIER_LVL1_STATS.speed.run_speed).max(0.0),
                             };
                             // Apply speed reduction for combat actions AND blocking
                             let mut final_bike_speed = if fighter.combat_action_slowdown_timer > 0.0
@@ -3951,6 +4092,137 @@ fn main() {
                     fixed_crater.x = fighter.x;
                     fixed_crater.y = fighter.y;
                     stars.iter_mut().for_each(|s| s.update(dt));
+					
+                    if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                        for cr in &mut cpu_racers {
+                            let in_rut_zone = collision_barrier_manager.check_rut(
+                                &sbrx_map_system.current_field_id,
+                                cr.x,
+                                cr.y,
+                            );
+                            let rut_mult = if in_rut_zone { 0.85 } else { 1.0 };
+                            cr.update(dt, rut_mult, fighter.x, fighter.y, &audio_manager);
+                        }
+						if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+							let mut player_died_this_frame = false;
+							for cr in &mut cpu_racers {
+								if !player_died_this_frame
+									&& cr.check_collision(
+										fighter.x,
+										fighter.y,
+										block_system.active,
+										&audio_manager,
+									)
+								{
+									let mut attack_negated = false;
+									if block_system.active && !block_system.block_broken && !block_system.block_fatigue {
+										attack_negated = block_system.process_projectile_block(&mut fighter, &audio_manager, game_time);
+									}
+	 
+									// Passive defense checks (Auto-block/Auto-dodge)
+									if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken {
+										let mut rng = rand::rng();
+										let roll: f64 = rng.random();
+										let can_show_passive_anim = !is_high_priority_animation_active(
+											rush_active, strike_animation_timer, block_system.active, block_system.rmb_held
+										) && !movement_active && !backpedal_active;
+	 
+										if roll < fighter.stats.defense.auto_dodge {
+											attack_negated = true;
+											audio_manager.play_sound_effect("boost").ok();
+											damage_texts.push(DamageText {
+												text: "DODGE".to_string(),
+												x: fighter.x, y: fighter.y - 90.0,
+												color: [0.0, 0.8, 1.0, 1.0], lifetime: 0.5,
+											});
+											if can_show_passive_anim {
+												current_racer_texture = current_backpedal_texture;
+												strike_animation_timer = 0.25;
+											}
+										} else if roll < fighter.stats.defense.auto_dodge + fighter.stats.defense.auto_block {
+											attack_negated = true;
+											audio_manager.play_sound_effect("block").ok();
+											damage_texts.push(DamageText {
+												text: "BLOCK".to_string(),
+												x: fighter.x, y: fighter.y - 90.0,
+												color: [1.0, 1.0, 1.0, 1.0], lifetime: 0.5,
+											});
+											if can_show_passive_anim {
+												current_racer_texture = current_block_texture;
+												strike_animation_timer = 0.25;
+											}
+										}
+									}
+	 
+									if !attack_negated && !player_died_this_frame {
+										if cr.damage_display_cooldown <= 0.0 {
+											if fighter.invincible_timer <= 0.0 {
+												let damage_chunk = cr.stats.attack.melee_damage;
+												let combo_dr_multiplier = combo_system.get_damage_intake_multiplier();
+												let final_damage = damage_chunk * block_system.get_damage_multiplier() * combo_dr_multiplier;
+												fighter.current_hp -= final_damage;
+												cr.damage_display_cooldown = 0.125;
+												
+												damage_texts.push(DamageText {
+													text: format!("{:.0}", damage_chunk),
+													x: fighter.x,
+													y: fighter.y - 70.0,
+													color: [1.0, 1.0, 1.0, 1.0],
+													lifetime: 0.25,
+												});	
+	 
+												if fighter.current_hp <= 0.0 {
+													player_died_this_frame = true;
+													lmb_held = false;
+													melee_rapid_fire_timer = 0.0;
+													soldier_rapid_fire_timer = 0.0;
+													if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+													if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }
+	 
+													fighter_hp_map.insert(fighter.fighter_type, 0.0);
+	 
+													if fighter.state == RacerState::OnBike {
+														fighter.state = RacerState::OnFoot;
+														if fighter.fighter_type != FighterType::Raptor {
+															sbrx_bike.respawn(fighter.x, fighter.y);
+														}
+													}
+	 
+													block_break_animation_active = false;
+													block_system = BlockSystem::new(20);
+	 
+													let mut group_members = vec![FighterType::Racer];
+													if soldier_has_joined { group_members.push(FighterType::Soldier); }
+													if raptor_has_joined { group_members.push(FighterType::Raptor); }
+	 
+													let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
+	 
+													if group_members.len() > 1 && has_survivors {
+														game_state = GameState::DeathScreenGroup {
+															death_type: DeathType::Crashed,
+															downed_fighter_type: fighter.fighter_type,
+														};
+														death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+														if !downed_fighters.contains(&fighter.fighter_type) {
+															downed_fighters.push(fighter.fighter_type);
+														}
+														revival_kill_score = 0;
+													} else {
+														if !downed_fighters.contains(&fighter.fighter_type) {
+															downed_fighters.push(fighter.fighter_type);
+														}
+														game_state = GameState::DeathScreen(DeathType::Crashed);
+														death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+													}
+													audio_manager.play_sound_effect("death").ok();
+												}
+											}
+										}
+									}
+								}
+							}
+						}											
+                    }			
 
                     for cpu in &mut cpu_entities {
                         if racetrack_active && !endless_arena_mode_active {
@@ -6029,6 +6301,12 @@ fn main() {
                                 cpu_entity.draw(tc, g, textures_to_use);
                             }
                         }
+						
+                        if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                            for cr in &cpu_racers {
+                                cr.draw(tc, g, &racer2_textures, &sbrx_bike_crashed_texture);
+                            }
+                        }						
 
                         for effect in &active_visual_effects {
                             let alpha = (effect.lifetime / effect.max_lifetime) as f32;
@@ -7308,6 +7586,7 @@ fn main() {
                                         fighter.y,
                                         &mut fighter,
                                         &mut cpu_entities,
+										&mut cpu_racers,
                                         &mut strike,
                                         &audio_manager,
                                         line_y,
@@ -7315,6 +7594,7 @@ fn main() {
                                         &mut task_system,
                                         &mut combo_system,
 										is_paused,
+										sbrx_map_system.current_field_id,
                                     );
 									
                                     // Soldier Reward: 1.5s Invincibility on Kinetic Strike
@@ -7405,8 +7685,10 @@ fn main() {
                                         &mut frontal_strike_is_special,
                                         &mut combo_finisher_slash_count,
                                         &mut cpu_entities,
+										&mut cpu_racers,
                                         &mut damage_texts,
 										is_paused,
+										sbrx_map_system.current_field_id,
                                     );
                                     melee_rapid_fire_timer = MELEE_RAPID_FIRE_RATE;
                                 } else {
@@ -8229,6 +8511,69 @@ fn main() {
                                                         }
                                                     }
                                                 }
+												
+                                                if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                                                    for cr in cpu_racers.iter_mut() {
+                                                        if cr.is_crashed { continue; }
+                                                        if check_line_collision(ix, iy, cex, cey, cr.x, cr.y) {
+                                                            let mut rush_damage = fighter.melee_damage;
+                                                            if fighter.invincible_timer > 1.0 {
+                                                                rush_damage *= 1.25;
+                                                            }
+                                                            cr.current_hp -= rush_damage;
+ 
+                                                            damage_texts.push(DamageText {
+                                                                text: format!("{:.0}", rush_damage),
+                                                                x: cr.x,
+                                                                y: cr.y - 50.0,
+                                                                color: if fighter.invincible_timer > 1.0 { [0.7, 1.0, 0.0, 1.0] } else { [1.0, 1.0, 0.0, 1.0] },
+                                                                lifetime: 0.25,
+                                                            });
+ 
+                                                            use crate::entities::cpu_entity::BleedEffect;
+                                                            cr.bleed_effect = Some(BleedEffect::new(50.0 * effectiveness_multiplier));
+                                                            damage_texts.push(DamageText {
+                                                                text: "BLEED".to_string(),
+                                                                x: cr.x,
+                                                                y: cr.y - 70.0,
+                                                                color: [1.0, 0.0, 0.0, 1.0],
+                                                                lifetime: 0.5,
+                                                            });
+ 
+                                                            if cr.current_hp <= 0.0 {
+                                                                cr.current_hp = 0.0;
+                                                                cr.is_crashed = true;
+                                                                cr.state = RacerState::OnFoot;
+                                                                cr.is_attacking = false;
+                                                                cr.stun_timer = 1.0;
+ 
+                                                                let kx = cr.x - ix;
+                                                                let ky = cr.y - iy;
+                                                                let angle = ky.atan2(kx);
+ 
+                                                                let force = 800.0;
+                                                                cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+                                                                cr.knockback_duration = 0.4;
+ 
+																cr.bike_x = cr.x;
+																cr.bike_y = cr.y;
+																let bike_angle = angle + 0.5;
+																cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+																cr.bike_knockback_duration = 0.5;														
+                                                            } else {
+                                                                let kx = cr.x - ix;
+                                                                let ky = cr.y - iy;
+                                                                let k_dist = (kx * kx + ky * ky).sqrt();
+                                                                if k_dist > 0.0 {
+                                                                    let norm_kx = kx / k_dist;
+                                                                    let norm_ky = ky / k_dist;
+                                                                    cr.knockback_velocity = Vec2d::new(norm_kx * 400.0 * effectiveness_multiplier, norm_ky * 400.0 * effectiveness_multiplier);
+                                                                    cr.knockback_duration = 0.1;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }												
                                             }
                                             fighter.x = rex;
                                             fighter.y = rey;
@@ -8364,6 +8709,69 @@ fn main() {
                                                         }
                                                     }
                                                 }
+												
+                                                if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                                                    for cr in cpu_racers.iter_mut() {
+                                                        if cr.is_crashed { continue; }
+                                                        if check_line_collision(ix, iy, cex, cey, cr.x, cr.y) {
+                                                            let mut rush_damage = fighter.melee_damage;
+                                                            if fighter.invincible_timer > 1.0 {
+                                                                rush_damage *= 1.25;
+                                                            }
+                                                            cr.current_hp -= rush_damage;
+ 
+                                                            damage_texts.push(DamageText {
+                                                                text: format!("{:.0}", rush_damage),
+                                                                x: cr.x,
+                                                                y: cr.y - 50.0,
+                                                                color: if fighter.invincible_timer > 1.0 { [0.7, 1.0, 0.0, 1.0] } else { [1.0, 1.0, 0.0, 1.0] },
+                                                                lifetime: 0.25,
+                                                            });
+ 
+                                                            use crate::entities::cpu_entity::BleedEffect;
+                                                            cr.bleed_effect = Some(BleedEffect::new(50.0));
+                                                            damage_texts.push(DamageText {
+                                                                text: "BLEED".to_string(),
+                                                                x: cr.x,
+                                                                y: cr.y - 70.0,
+                                                                color: [1.0, 0.0, 0.0, 1.0],
+                                                                lifetime: 0.5,
+                                                            });
+ 
+                                                            if cr.current_hp <= 0.0 {
+                                                                cr.current_hp = 0.0;
+                                                                cr.is_crashed = true;
+                                                                cr.state = RacerState::OnFoot;
+                                                                cr.is_attacking = false;
+                                                                cr.stun_timer = 1.0;
+ 
+                                                                let kx = cr.x - ix;
+                                                                let ky = cr.y - iy;
+                                                                let angle = ky.atan2(kx);
+ 
+                                                                let force = 800.0;
+                                                                cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+                                                                cr.knockback_duration = 0.4;
+ 
+																cr.bike_x = cr.x;
+																cr.bike_y = cr.y;
+																let bike_angle = angle + 0.5;
+																cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+																cr.bike_knockback_duration = 0.5;																
+                                                            } else {
+                                                                let kx = cr.x - ix;
+                                                                let ky = cr.y - iy;
+                                                                let k_dist = (kx * kx + ky * ky).sqrt();
+                                                                if k_dist > 0.0 {
+                                                                    let norm_kx = kx / k_dist;
+                                                                    let norm_ky = ky / k_dist;
+                                                                    cr.knockback_velocity = Vec2d::new(norm_kx * 400.0, norm_ky * 400.0);
+                                                                    cr.knockback_duration = 0.1;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }																							
                                             }
                                             fighter.x = rex;
                                             fighter.y = rey;
@@ -9954,7 +10362,8 @@ fn main() {
                         endless_arena_timer = 0.0;
                         endless_arena_stage = 1;
                         println!("Resetting Endless Arena timer after party wipe.");
-                    }					
+                    }
+					//cpu_racers.clear();
                 }
             }
             GameState::DeathScreenGroup {
@@ -10116,6 +10525,143 @@ fn main() {
                         }
                     }
                 }
+				
+                // --- JUMP ZONE CHECK FOR CPU_RACERS ---
+                if !is_paused && current_area.is_none() && sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                    for cr in &mut cpu_racers {
+                        if let Some(hit) = collision_barrier_manager.check_jump(
+                            &sbrx_map_system.current_field_id,
+                            cr.x,
+                            cr.y,
+                        ) {
+                            match hit.zone_type {
+                                JumpZoneType::Launch => {
+                                    if cr.knockback_duration <= 0.0 {
+                                        let dx = hit.target_x - cr.x;
+                                        let dy = hit.target_y - cr.y;
+                                        let dist = (dx * dx + dy * dy).sqrt();
+                                        if dist > 10.0 {
+                                            let norm_dx = dx / dist;
+                                            let norm_dy = dy / dist;
+                                            let travel_time = 0.25; 
+                                            let required_speed = dist / travel_time;
+                                            cr.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+                                            cr.knockback_duration = travel_time;
+                                            cr.invincible_timer = 1.0;
+                                            cr.in_jump_sequence = true; 
+                                        }
+                                    }
+                                }
+                                JumpZoneType::Air => {
+                                    if cr.in_jump_sequence {
+                                        let dx = (hit.target_x + 50.0) - cr.x;
+                                        let dy = (hit.target_y + 50.0) - cr.y;
+                                        let dist = (dx * dx + dy * dy).sqrt();
+                                        if dist > 50.0 {
+                                            let norm_dx = dx / dist;
+                                            let norm_dy = dy / dist;
+                                            let travel_time = 0.25; 
+                                            let required_speed = dist / travel_time;
+                                            cr.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+                                            cr.knockback_duration = travel_time;
+                                            cr.invincible_timer = 1.0; 
+                                        }
+                                    }
+                                }
+                                JumpZoneType::Landing => {
+                                    if cr.in_jump_sequence {
+                                        cr.knockback_velocity = Vec2d::new(0.0, 0.0);
+                                        cr.knockback_duration = 0.0;
+                                        if cr.invincible_timer > 0.3 {
+                                            cr.invincible_timer = 0.3;
+                                        }
+                                        cr.in_jump_sequence = false;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // --- CHAIN ZONE CHECK FOR CPU ---
+                        if let Some(hit) = collision_barrier_manager.check_chain(
+                            &sbrx_map_system.current_field_id,
+                            cr.x,
+                            cr.y,
+                        ) {
+                            if hit.is_final {
+                                cr.knockback_velocity = Vec2d::new(0.0, 0.0);
+                                cr.knockback_duration = 0.0;
+                                if cr.invincible_timer > 0.3 {
+                                    cr.invincible_timer = 0.3;
+                                }
+                            } else {
+                                let dx = hit.target_x - cr.x;
+                                let dy = hit.target_y - cr.y;
+                                let dist = (dx * dx + dy * dy).sqrt();
+                                if dist > 0.0 {
+                                    let norm_dx = dx / dist;
+                                    let norm_dy = dy / dist;
+                                    let travel_time = 0.4;
+                                    let required_speed = dist / travel_time;
+                                    cr.knockback_velocity = Vec2d::new(norm_dx * required_speed, norm_dy * required_speed);
+                                    cr.knockback_duration = travel_time;
+                                    cr.invincible_timer = 1.5;
+                                }
+                            }
+                        }
+                    }
+                }
+ 
+                // --- CPU GROUND ASSET & BARRIER COLLISIONS ---
+                if !is_paused && current_area.is_none() && sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                    for cr in &mut cpu_racers {
+                        if cr.invincible_timer <= 0.0 {
+                            if let Some((barrier_x, barrier_y)) = collision_barrier_manager.check_collision(
+                                &sbrx_map_system.current_field_id,
+                                cr.x,
+                                cr.y,
+                                45.0,
+                            ) {
+                                audio_manager.play_sound_effect("death").ok();
+                                let dx = cr.x - barrier_x;
+                                let dy = cr.y - barrier_y;
+                                let angle = dy.atan2(dx);
+                                
+                                cr.current_hp -= 100.0;
+                                cr.stun_timer = 1.0;
+                                let force = 800.0;
+                                cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+                                cr.knockback_duration = 0.4;
+                                cr.state = RacerState::OnFoot;
+                                cr.is_crashed = true;
+                                cr.invincible_timer = 1.0;
+                            }
+                            
+                            // Check ground assets
+                            if let Some(assets) = placed_ground_assets.get(&sbrx_map_system.current_field_id) {
+                                for asset in assets {
+                                    let dx = cr.x - asset.x;
+                                    let dy = cr.y - asset.y;
+                                    let dist_sq = dx * dx + dy * dy;
+                                    if dist_sq < 45.0 * 45.0 {
+                                        audio_manager.play_sound_effect("death").ok();
+                                        let angle = dy.atan2(dx);
+                                        
+                                        cr.current_hp -= 100.0;
+                                        cr.stun_timer = 1.0;
+                                        let force = 800.0;
+                                        cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+                                        cr.knockback_duration = 0.4;
+                                        cr.state = RacerState::OnFoot;
+                                        cr.is_crashed = true;
+                                        cr.invincible_timer = 1.0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }					
+				
                 if let Some(_) = e.render_args() {
                     window.draw_2d(&e, |c, g, device| {
                         clear([0.0, 0.0, 0.0, 1.0], g);
@@ -10853,5 +11399,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.18 Game loop ended.");
+    println!("sbrx0.2.19 Game loop ended.");
 }

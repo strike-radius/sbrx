@@ -3,9 +3,11 @@
 use crate::config::CPU_ENABLED;
 use crate::entities::cpu_entity::CpuEntity;
 use crate::entities::fighter::Fighter;
+use crate::entities::cpu_racer::CpuRacer;
 use crate::utils::collision::check_line_collision;
 use crate::DamageText;
 use crate::RacerState;
+use crate::utils::vec2d::Vec2d;
 
 /// Represents a ranged shooting attack
 pub struct Shoot {
@@ -68,9 +70,11 @@ impl Shoot {
         &mut self,
         dt: f64,
         cpu_entities: &mut Vec<CpuEntity>,
+		cpu_racers: &mut Vec<CpuRacer>,
         fighter: &mut Fighter,
         damage_texts: &mut Vec<DamageText>,
         is_paused: bool,
+		current_field: crate::map_system::FieldId,
     ) {
         // Timers always run, even when paused, to manage cooldowns and visual effects.
         if self.cooldown > 0.0 {
@@ -166,6 +170,102 @@ impl Shoot {
                     break; // Exit the loop after hitting one entity
                 }
             }
+			
+            if !hit_entity && current_field == crate::map_system::FieldId(0, 0) {
+                for cr in cpu_racers.iter_mut() {
+                    if cr.is_crashed { continue; }
+                    if check_line_collision(
+                        self.start_x,
+                        self.start_y,
+                        self.target_x,
+                        self.target_y,
+                        cr.x,
+                        cr.y,
+                    ) {
+                        let mut damage = fighter.ranged_damage;
+                        if fighter.state == RacerState::OnBike {
+                            damage *= 0.1;
+                        }
+                        if fighter.fighter_type == crate::game_state::FighterType::Soldier {
+                            damage *= 0.50;
+                        }
+                        if fighter.invincible_timer > 1.0 {
+                            damage *= 1.25;
+                        }
+ 
+                        cr.current_hp -= damage;
+ 
+                        let ranged_dmg_color = if fighter.invincible_timer > 1.0 {
+                            [0.7, 1.0, 0.0, 1.0]
+                        } else {
+                            [1.0, 1.0, 1.0, 1.0]
+                        };
+ 
+                        if damage_texts.len() < 100 {
+                            damage_texts.push(DamageText {
+                                text: format!("{:.0}", damage),
+                                x: cr.x,
+                                y: cr.y - 50.0,
+                                color: ranged_dmg_color,
+                                lifetime: 0.25,
+                            });
+                        }
+ 
+                        if fighter.fighter_type == crate::game_state::FighterType::Racer {
+                            use crate::entities::cpu_entity::BleedEffect;
+                            cr.bleed_effect = Some(BleedEffect::new(50.0));
+                            if damage_texts.len() < 100 {
+                                damage_texts.push(DamageText {
+                                    text: "BLEED".to_string(),
+                                    x: cr.x,
+                                    y: cr.y - 70.0,
+                                    color: [1.0, 0.0, 0.0, 1.0],
+                                    lifetime: 0.5,
+                                });
+                            }
+                        }
+ 
+                        if cr.current_hp <= 0.0 {
+                            cr.current_hp = 0.0;
+                            cr.is_crashed = true;
+                            cr.state = RacerState::OnFoot;
+                            cr.is_attacking = false;
+							cr.stun_timer = 1.0;
+
+							let kx = cr.x - self.start_x;
+							let ky = cr.y - self.start_y;
+							let angle = ky.atan2(kx);
+
+							let force = 800.0;
+							cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+							cr.knockback_duration = 0.4;
+
+                            cr.bike_x = cr.x;
+                            cr.bike_y = cr.y;
+                            let bike_angle = angle + 0.5;
+                            cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+                            cr.bike_knockback_duration = 0.5;						
+                        } else {
+                            let knockback_force = if fighter.fighter_type == crate::game_state::FighterType::Soldier {
+                                -50.0
+                            } else {
+                                300.0
+                            };
+                            let kx = cr.x - self.start_x;
+                            let ky = cr.y - self.start_y;
+                            let k_dist = (kx * kx + ky * ky).sqrt();
+                            if k_dist > 0.0 {
+                                let norm_kx = kx / k_dist;
+                                let norm_ky = ky / k_dist;
+                                cr.knockback_velocity = Vec2d::new(norm_kx * knockback_force, norm_ky * knockback_force);
+                                cr.knockback_duration = 0.1;
+                            }
+                        }
+                        hit_entity = true;
+                        break;
+                    }
+                }
+            }			
 
             if hit_entity {
                 self.active = false;

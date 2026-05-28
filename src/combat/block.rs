@@ -1,5 +1,6 @@
 // File: src/combat/block.rs
 
+use crate::CpuRacer;
 use crate::audio::AudioManager;
 use crate::config::gameplay::COLLISION_THRESHOLD;
 use crate::entities::cpu_entity::CpuEntity;
@@ -8,6 +9,7 @@ use crate::entities::strike::Strike; // For strike visual
 use crate::game_state::RacerState;
 use crate::DamageText;
 use piston_window::*; // For strike collision check
+use crate::utils::vec2d::Vec2d;
 
 // Base values for Kinetic Strike
 //pub const KINETIC_STRIKE_BASE_DAMAGE: f64 = 25.0;
@@ -354,6 +356,7 @@ impl BlockSystem {
         world_y: f64,
         fighter: &mut Fighter,
         cpu_entities: &mut Vec<CpuEntity>,
+		cpu_racers: &mut Vec<CpuRacer>,
         strike_visual: &mut Strike,
         audio_manager: &AudioManager,
         _line_y: f64, // For CPU respawn
@@ -361,6 +364,7 @@ impl BlockSystem {
         _task_system: &mut crate::task::TaskSystem,
         combo_system: &mut crate::combat::combo::ComboSystem,
 		is_paused: bool,
+		current_field: crate::map_system::FieldId,
     ) {
         if self.kinetic_intake_count == 0
             || self.is_stun_locked()
@@ -439,6 +443,70 @@ impl BlockSystem {
                     }
                 }
             }
+			
+            if current_field == crate::map_system::FieldId(0, 0) {
+                for cr in cpu_racers.iter_mut() {
+                    if cr.is_crashed { continue; }
+                    let strike_dx = world_x - cr.x;
+                    let strike_dy = world_y - cr.y;
+                    if (strike_dx * strike_dx + strike_dy * strike_dy).sqrt() < strike_radius {
+                        let mut damage = fighter.melee_damage * effectiveness_multiplier;
+                        let knockback_force = KINETIC_STRIKE_BASE_KNOCKBACK * effectiveness_multiplier;
+ 
+                        if fighter.invincible_timer > 1.0 {
+                            damage *= 1.25;
+                        }
+ 
+                        cr.current_hp -= damage;
+ 
+                        let ks_dmg_color = if fighter.invincible_timer > 1.0 {
+                            [0.0, 0.9, 1.0, 1.0]
+                        } else {
+                            [0.0, 1.0, 0.0, 1.0]
+                        };
+ 
+                        damage_texts.push(DamageText {
+                            text: format!("{:.0}", damage),
+                            x: cr.x,
+                            y: cr.y - 50.0,
+                            color: ks_dmg_color,
+                            lifetime: 0.25,
+                        });
+ 
+                        if cr.current_hp <= 0.0 {
+                            cr.current_hp = 0.0;
+                            cr.is_crashed = true;
+                            cr.state = RacerState::OnFoot;
+							cr.is_attacking = false;
+							cr.stun_timer = 1.0;
+
+							let kx = cr.x - world_x;
+							let ky = cr.y - world_y;
+							let angle = ky.atan2(kx);
+
+							let force = 800.0;
+							cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
+							cr.knockback_duration = 0.4;
+
+                            cr.bike_x = cr.x;
+                            cr.bike_y = cr.y;
+                            let bike_angle = angle + 0.5;
+                            cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+                            cr.bike_knockback_duration = 0.5;						
+                        } else {
+                            let kx = cr.x - world_x;
+                            let ky = cr.y - world_y;
+                            let k_dist = (kx * kx + ky * ky).sqrt();
+                            if k_dist > 0.0 {
+                                let norm_kx = kx / k_dist;
+                                let norm_ky = ky / k_dist;
+                                cr.knockback_velocity = Vec2d::new(norm_kx * knockback_force, norm_ky * knockback_force);
+                                cr.knockback_duration = 0.1;
+                            }
+                        }
+                    }
+                }
+            }			
         }
 
         // Set the kinetic strike timer

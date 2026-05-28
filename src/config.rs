@@ -39,7 +39,7 @@ pub mod movement {
 
 /// Gameplay constants
 pub mod gameplay {
-    pub const COLLISION_THRESHOLD: f64 = 75.0; // cpu strike/collision zone
+    pub const COLLISION_THRESHOLD: f64 = 75.0; // cpu strike/collision zone. Distance in pixels
     pub const BIKE_INTERACTION_DISTANCE: f64 = 125.0;
     pub const FIGHTER_JET_INTERACTION_DISTANCE: f64 = 150.0;
     pub const RAPTOR_NEST_INTERACTION_DISTANCE: f64 = 150.0;
