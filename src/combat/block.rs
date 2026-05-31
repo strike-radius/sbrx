@@ -488,11 +488,13 @@ impl BlockSystem {
 							cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
 							cr.knockback_duration = 0.4;
 
-                            cr.bike_x = cr.x;
-                            cr.bike_y = cr.y;
-                            let bike_angle = angle + 0.5;
-                            cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
-                            cr.bike_knockback_duration = 0.5;						
+							if cr.phase == 1 {
+							   cr.bike_x = cr.x;
+							   cr.bike_y = cr.y;
+							   let bike_angle = angle + 0.5;
+							   cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+							   cr.bike_knockback_duration = 0.5;
+							}					
                         } else {
                             let kx = cr.x - world_x;
                             let ky = cr.y - world_y;

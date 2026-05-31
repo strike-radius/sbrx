@@ -59,6 +59,7 @@ pub struct CpuRacer {
 	pub bike_y: f64,
 	pub bike_knockback_velocity: Vec2d,
 	pub bike_knockback_duration: f64,
+	pub phase: u32,
 }
 
 impl CpuRacer {
@@ -124,7 +125,8 @@ impl CpuRacer {
 			bike_x: 0.0,
 			bike_y: 0.0,
 			bike_knockback_velocity: Vec2d::new(0.0, 0.0),
-			bike_knockback_duration: 0.0,			
+			bike_knockback_duration: 0.0,	
+			phase: 1,
         }
     }
 
@@ -145,6 +147,13 @@ impl CpuRacer {
 
         if self.stun_timer > 0.0 {
             self.stun_timer -= dt;
+			if self.stun_timer <= 0.0 && self.is_crashed && self.phase == 1 {
+				self.is_crashed = false;
+				self.state = RacerState::OnFoot;
+				self.current_hp = self.max_hp;
+				self.phase = 2;
+				println!("CpuRacer recovered from crash! Phase 2: OnFoot active.");
+			}			
         }
 
         if self.invincible_timer > 0.0 {
@@ -168,9 +177,13 @@ impl CpuRacer {
 			if p_dist < medium_proximity {
 				// Pursuit mode (locked-on to player_racer)
 				if p_dist > 0.0 {
-					let base_speed = 650.0; // Standard BIKE_SPEED
-					let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
-					let speed = base_speed + speed_bonus;
+					let speed = if self.state == RacerState::OnFoot {
+						self.stats.speed.run_speed
+					} else {
+						let base_speed = 650.0; // Standard BIKE_SPEED
+						let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
+						base_speed + speed_bonus
+					};
 					let speed_mult = if self.boost { 1.25 } else { 1.0 } * rut_mult;
 					
 					self.x += (pdx / p_dist) * speed * speed_mult * dt;
@@ -198,9 +211,13 @@ impl CpuRacer {
 					let dist = (dx * dx + dy * dy).sqrt();
 
 					if dist > 0.0 {
-						let base_speed = 650.0; // Standard BIKE_SPEED
-						let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
-						let speed = base_speed + speed_bonus;
+						let speed = if self.state == RacerState::OnFoot {
+							self.stats.speed.run_speed
+						} else {
+							let base_speed = 650.0; // Standard BIKE_SPEED
+							let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
+							base_speed + speed_bonus
+						};
 						let speed_mult = if self.boost { 1.25 } else { 1.0 } * rut_mult;
 						
 						self.x += (dx / dist) * speed * speed_mult * dt;
@@ -295,11 +312,13 @@ impl CpuRacer {
 	}	
 
     pub fn draw(&self, c: Context, g: &mut G2d, textures: &FighterTextures, crashed_bike_tex: &G2dTexture) {
- 			if self.is_crashed {
+ 			if self.is_crashed || self.phase >= 2 {
  				let b_w = crashed_bike_tex.get_width() as f64;
  				let b_h = crashed_bike_tex.get_height() as f64;
  				image(crashed_bike_tex, c.transform.trans(self.bike_x - b_w / 2.0, self.bike_y - b_h / 2.0), g);
+ 			}
  
+ 			if self.is_crashed {
  				let tex = &textures.block_break;
  				let tex_w = tex.get_width() as f64;
  				let tex_h = tex.get_height() as f64;
