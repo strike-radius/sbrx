@@ -46,6 +46,7 @@ pub struct Fighter {
 	pub boost_indicator_timer: f64,
 	pub show_gear: bool,
 	pub racer_variant: u32,
+	pub bleed_effect: Option<crate::entities::cpu_entity::BleedEffect>,
 }
 
 impl Fighter {
@@ -104,6 +105,7 @@ impl Fighter {
 			boost_indicator_timer: 0.0,
 			show_gear: false,
 			racer_variant: 0,
+			bleed_effect: None,
         }
     }
 

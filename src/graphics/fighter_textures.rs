@@ -43,6 +43,8 @@ pub struct FighterTextures {
     pub backpedal_boost: Option<G2dTexture>,
     pub bike_accelerate_boost: Option<Vec<G2dTexture>>,
     pub bike_slide_boost: Option<G2dTexture>,	
+	pub ranged_aim: Option<G2dTexture>,
+	pub bike_ranged_aim: Option<G2dTexture>,
 }
 
 /// Helper function to load textures for a specific fighter type
@@ -182,6 +184,12 @@ pub fn load_fighter_textures(
     } else {
         (None, None, None, None)
     };	
+	
+    let ranged_aim_path = assets.join(format!("player/{}/ranged_aim.png", fighter_type));
+    let ranged_aim = Texture::from_path(&mut window.create_texture_context(), &ranged_aim_path, Flip::None, &TextureSettings::new()).ok();	
+
+    let bike_ranged_aim_path = assets.join(format!("player/{}/racer_onBike/rcrBikeRangedAim.png", fighter_type));
+    let bike_ranged_aim = Texture::from_path(&mut window.create_texture_context(), &bike_ranged_aim_path, Flip::None, &TextureSettings::new()).ok();
 
     Ok(FighterTextures {
         idle: idle_texture,
@@ -204,7 +212,9 @@ pub fn load_fighter_textures(
         fwd_boost,
         backpedal_boost,
         bike_accelerate_boost,
-        bike_slide_boost,		
+        bike_slide_boost,	
+		ranged_aim,
+		bike_ranged_aim,
     })
 }
 

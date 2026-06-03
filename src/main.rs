@@ -2119,6 +2119,29 @@ fn main() {
                             }
                         }
 						
+                        // Update bleed effect for player
+                        if let Some(ref mut bleed) = fighter.bleed_effect {
+                            bleed.tick_timer += dt;
+                            if bleed.tick_timer >= bleed.tick_rate {
+                                bleed.tick_timer = 0.0;
+                                let damage = bleed.damage_per_tick.min(bleed.remaining_damage);
+                                fighter.current_hp -= damage;
+                                bleed.remaining_damage -= damage;
+
+                                damage_texts.push(DamageText {
+                                    text: format!("{:.0}", damage),
+                                    x: fighter.x,
+                                    y: fighter.y - 70.0,
+                                    color: [1.0, 0.0, 0.0, 1.0], // Red
+                                    lifetime: 0.25,
+                                });
+
+                                if bleed.remaining_damage <= 0.0 {
+                                    fighter.bleed_effect = None;
+                                }
+                            }
+                        }						
+						
 						// Update background_track notification lifetime
 						if let Some(ref mut notif) = track_notification {
 							notif.lifetime -= dt;
@@ -2980,7 +3003,16 @@ fn main() {
                                     && !key_a_pressed
                                     && !key_d_pressed)
                             {
-                                if current_racer_texture != current_idle_texture {
+                                let is_soldier_aiming_idle = fighter.fighter_type == FighterType::Soldier
+                                    && shift_held;
+ 
+                                if is_soldier_aiming_idle {
+                                    if fighter.state == RacerState::OnFoot {
+                                        current_racer_texture = tex_set.ranged_aim.as_ref().unwrap_or(current_idle_texture);
+                                    } else {
+                                        current_racer_texture = tex_set.bike_ranged_aim.as_ref().unwrap_or(current_idle_texture);
+                                    }
+                                } else if current_racer_texture != current_idle_texture {
                                     current_racer_texture = current_idle_texture;
                                 }
                             }
@@ -4105,6 +4137,270 @@ fn main() {
                             let rut_mult = if in_rut_zone { 0.85 } else { 1.0 };
                             cr.update(dt, rut_mult, fighter.x, fighter.y, &audio_manager);
                         }
+						
+						if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+							let mut player_died_this_frame = false;
+							for cr in &mut cpu_racers {
+								let dx = fighter.x - cr.x;
+								let dy = fighter.y - cr.y;
+								let dist = (dx * dx + dy * dy).sqrt();
+ 								
+                            // RUSH attack trigger
+                            if dist < 400.0 && cr.rush_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active {
+                                cr.rush_active = true;
+                                cr.rush_timer = 0.25;
+                                cr.rush_cooldown = 3.0; // cpu_racer rush attack cooldown
+                                cr.rush_has_hit = false;
+                                
+                                if dist > 0.0 {
+                                    cr.rush_dir_x = dx / dist;
+                                    cr.rush_dir_y = dy / dist;
+                                    cr.facing_left = cr.rush_dir_x < 0.0;
+                                } else {
+                                    cr.rush_dir_x = 1.0;
+                                    cr.rush_dir_y = 0.0;
+                                }
+ 
+                                audio_manager.play_sound_effect("rush").ok();
+                            }
+ 
+                            // Active RUSH collision check
+                            if cr.rush_active && !cr.rush_has_hit && dist < COLLISION_THRESHOLD {
+                                cr.rush_has_hit = true;
+ 
+                                // Process block/negation
+                                let mut attack_negated = false;
+                                if block_system.active && !block_system.block_broken && !block_system.block_fatigue {
+                                   attack_negated = block_system.process_projectile_block(&mut fighter, &audio_manager, game_time);
+                                }
+ 
+                                if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken {
+                                    let mut rng = rand::rng();
+                                    let roll: f64 = rng.random();
+                                    if roll < fighter.stats.defense.auto_dodge {
+                                        attack_negated = true;
+                                        audio_manager.play_sound_effect("boost").ok();
+                                        damage_texts.push(DamageText {
+                                            text: "DODGE".to_string(),
+                                            x: fighter.x, y: fighter.y - 90.0,
+                                            color: [0.0, 0.8, 1.0, 1.0], lifetime: 0.5,
+                                        });
+                                    } else if roll < fighter.stats.defense.auto_dodge + fighter.stats.defense.auto_block {
+                                        attack_negated = true;
+                                        audio_manager.play_sound_effect("block").ok();
+                                        damage_texts.push(DamageText {
+                                            text: "BLOCK".to_string(),
+                                            x: fighter.x, y: fighter.y - 90.0,
+                                            color: [1.0, 1.0, 1.0, 1.0], lifetime: 0.5,
+                                        });
+                                    }
+                                }
+ 
+                                if !attack_negated && !player_died_this_frame {
+                                    if fighter.invincible_timer <= 0.0 {
+                                        let damage_chunk = cr.stats.attack.melee_damage;
+                                        let combo_dr_multiplier = combo_system.get_damage_intake_multiplier();
+                                        let final_damage = damage_chunk * block_system.get_damage_multiplier() * combo_dr_multiplier;
+                                        fighter.current_hp -= final_damage;
+ 
+                                        damage_texts.push(DamageText {
+                                            text: format!("{:.0}", damage_chunk),
+                                            x: fighter.x,
+                                            y: fighter.y - 70.0,
+                                            color: [1.0, 1.0, 0.0, 1.0], // Yellow
+                                            lifetime: 0.25,
+                                        });
+ 
+                                        // Apply bleed to player
+                                        fighter.bleed_effect = Some(crate::entities::cpu_entity::BleedEffect::new(50.0));
+                                        damage_texts.push(DamageText {
+                                            text: "BLEED".to_string(),
+                                            x: fighter.x,
+                                            y: fighter.y - 90.0,
+                                            color: [1.0, 0.0, 0.0, 1.0],
+                                            lifetime: 0.5,
+                                        });
+ 
+                                        if fighter.current_hp <= 0.0 {
+                                            player_died_this_frame = true;
+                                            lmb_held = false;
+                                            melee_rapid_fire_timer = 0.0;
+                                            soldier_rapid_fire_timer = 0.0;
+                                            if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+                                            if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }
+ 
+                                            fighter_hp_map.insert(fighter.fighter_type, 0.0);
+ 
+                                            if fighter.state == RacerState::OnBike {
+                                                fighter.state = RacerState::OnFoot;
+                                                if fighter.fighter_type != FighterType::Raptor {
+                                                    sbrx_bike.respawn(fighter.x, fighter.y);
+                                                }
+                                            }
+ 
+                                            block_break_animation_active = false;
+                                            block_system = BlockSystem::new(20);
+ 
+                                            let mut group_members = vec![FighterType::Racer];
+                                            if soldier_has_joined { group_members.push(FighterType::Soldier); }
+                                            if raptor_has_joined { group_members.push(FighterType::Raptor); }
+ 
+                                            let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
+ 
+                                            if group_members.len() > 1 && has_survivors {
+                                                game_state = GameState::DeathScreenGroup {
+                                                    death_type: DeathType::Crashed,
+                                                    downed_fighter_type: fighter.fighter_type,
+                                                };
+                                                death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+                                                if !downed_fighters.contains(&fighter.fighter_type) {
+                                                    downed_fighters.push(fighter.fighter_type);
+                                                }
+                                                revival_kill_score = 0;
+                                            } else {
+                                                if !downed_fighters.contains(&fighter.fighter_type) {
+                                                    downed_fighters.push(fighter.fighter_type);
+                                                }
+                                                game_state = GameState::DeathScreen(DeathType::Crashed);
+                                                death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+                                            }
+                                            audio_manager.play_sound_effect("death").ok();
+                                        }
+                                    }
+                                }
+                            }								
+								
+								// Ranged attack trigger
+								if dist < 800.0 && dist >= 100.0 && cr.ranged_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active {
+									cr.ranged_cooldown = 1.5; // cpu_racer ranged attack cooldown
+									cr.ranged_shoot_visible = true;
+									cr.ranged_shoot_timer = 0.1;
+									cr.ranged_shoot_start_x = cr.x;
+									cr.ranged_shoot_start_y = cr.y;
+									cr.ranged_shoot_target_x = fighter.x;
+									cr.ranged_shoot_target_y = fighter.y;
+									cr.ranged_animation_timer = 0.25;
+	 
+									audio_manager.play_sound_effect("ranged").ok();
+	 
+									// Process block/negation
+									let mut attack_negated = false;
+									if block_system.active && !block_system.block_broken && !block_system.block_fatigue {
+										attack_negated = block_system.process_projectile_block(&mut fighter, &audio_manager, game_time);
+									}
+	 
+									if !attack_negated && fighter.invincible_timer <= 0.0 && !block_system.block_broken {
+										let mut rng = rand::rng();
+										let roll: f64 = rng.random();
+										if roll < fighter.stats.defense.auto_dodge {
+											attack_negated = true;
+											audio_manager.play_sound_effect("boost").ok();
+											damage_texts.push(DamageText {
+												text: "DODGE".to_string(),
+												x: fighter.x, y: fighter.y - 90.0,
+												color: [0.0, 0.8, 1.0, 1.0], lifetime: 0.5,
+											});
+										} else if roll < fighter.stats.defense.auto_dodge + fighter.stats.defense.auto_block {
+											attack_negated = true;
+											audio_manager.play_sound_effect("block").ok();
+											damage_texts.push(DamageText {
+												text: "BLOCK".to_string(),
+												x: fighter.x, y: fighter.y - 90.0,
+												color: [1.0, 1.0, 1.0, 1.0], lifetime: 0.5,
+											});
+										}
+									}
+	 
+									if !attack_negated && !player_died_this_frame {
+										if fighter.invincible_timer <= 0.0 {
+											let damage_chunk = cr.stats.attack.ranged_damage;
+											let combo_dr_multiplier = combo_system.get_damage_intake_multiplier();
+											let final_damage = damage_chunk * block_system.get_damage_multiplier() * combo_dr_multiplier;
+											fighter.current_hp -= final_damage;
+	 
+											damage_texts.push(DamageText {
+												text: format!("{:.0}", damage_chunk),
+												x: fighter.x,
+												y: fighter.y - 70.0,
+												color: [1.0, 1.0, 1.0, 1.0],
+												lifetime: 0.25,
+											});
+	 
+											// Apply bleed to player
+											fighter.bleed_effect = Some(crate::entities::cpu_entity::BleedEffect::new(50.0));
+											damage_texts.push(DamageText {
+												text: "BLEED".to_string(),
+												x: fighter.x,
+												y: fighter.y - 90.0,
+												color: [1.0, 0.0, 0.0, 1.0],
+												lifetime: 0.5,
+											});
+	 
+											if fighter.current_hp <= 0.0 {
+												player_died_this_frame = true;
+												lmb_held = false;
+												melee_rapid_fire_timer = 0.0;
+												soldier_rapid_fire_timer = 0.0;
+												if let Some(sink) = bike_accelerate_sound_sink.take() { sink.stop(); }
+												if let Some(sink) = bike_idle_sound_sink.take() { sink.stop(); }
+	 
+												fighter_hp_map.insert(fighter.fighter_type, 0.0);
+	 
+												if fighter.state == RacerState::OnBike {
+													fighter.state = RacerState::OnFoot;
+													if fighter.fighter_type != FighterType::Raptor {
+														sbrx_bike.respawn(fighter.x, fighter.y);
+													}
+												}
+	 
+												block_break_animation_active = false;
+												block_system = BlockSystem::new(20);
+	 
+												let mut group_members = vec![FighterType::Racer];
+												if soldier_has_joined { group_members.push(FighterType::Soldier); }
+												if raptor_has_joined { group_members.push(FighterType::Raptor); }
+	 
+												let has_survivors = group_members.iter().any(|ft| !downed_fighters.contains(ft) && *ft != fighter.fighter_type);
+	 
+												if group_members.len() > 1 && has_survivors {
+													game_state = GameState::DeathScreenGroup {
+														death_type: DeathType::Crashed,
+														downed_fighter_type: fighter.fighter_type,
+													};
+													death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+													if !downed_fighters.contains(&fighter.fighter_type) {
+														downed_fighters.push(fighter.fighter_type);
+													}
+													revival_kill_score = 0;
+												} else {
+													if !downed_fighters.contains(&fighter.fighter_type) {
+														downed_fighters.push(fighter.fighter_type);
+													}
+													game_state = GameState::DeathScreen(DeathType::Crashed);
+													death_screen_cooldown = DEATH_SCREEN_COOLDOWN_TIME;
+												}
+												audio_manager.play_sound_effect("death").ok();
+											}
+										}
+									}
+								}
+	 
+								if !player_died_this_frame
+									&& cr.check_collision(
+										fighter.x,
+										fighter.y,
+										block_system.active,
+										&audio_manager,
+									)
+								{
+									let mut _attack_negated = false;
+									if block_system.active && !block_system.block_broken && !block_system.block_fatigue {
+										_attack_negated = block_system.process_projectile_block(&mut fighter, &audio_manager, game_time);
+									}
+								}
+							}
+						}
+						
 						if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
 							let mut player_died_this_frame = false;
 							for cr in &mut cpu_racers {
@@ -9884,7 +10180,11 @@ fn main() {
                         && !movement_active
                         && !backpedal_active
                     {
-                        current_racer_texture = current_idle_texture;
+                        if fighter.fighter_type == FighterType::Soldier && shift_held {
+                            current_racer_texture = soldier_textures.ranged_aim.as_ref().unwrap_or(current_idle_texture);
+                        } else {
+                            current_racer_texture = current_idle_texture;
+                        }
                         current_movement_direction = MovementDirection::None;
                     } else if fighter.state == RacerState::OnBike
                         && !key_w_pressed
@@ -9899,7 +10199,11 @@ fn main() {
                             block_system.rmb_held,
                         )
                     {
-                        current_racer_texture = current_idle_texture;
+                        if fighter.fighter_type == FighterType::Soldier && shift_held {
+                            current_racer_texture = soldier_textures.bike_ranged_aim.as_ref().unwrap_or(current_idle_texture);
+                        } else {
+                            current_racer_texture = current_idle_texture;
+                        }
                         movement_active = false;
                         backpedal_active = false;
                         current_movement_direction = MovementDirection::None;

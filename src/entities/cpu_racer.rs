@@ -1,6 +1,7 @@
 // entities/cpu_racer.rs
 
 use crate::AudioManager;
+use crate::rand::Rng;
 use crate::combat::block::BlockSystem;
 use crate::combat::combo::ComboSystem;
 use crate::combat::stats::{Stats, RACER_LVL1_STATS};
@@ -60,6 +61,19 @@ pub struct CpuRacer {
 	pub bike_knockback_velocity: Vec2d,
 	pub bike_knockback_duration: f64,
 	pub phase: u32,
+	pub ranged_cooldown: f64,
+	pub ranged_shoot_visible: bool,
+	pub ranged_shoot_timer: f64,
+	pub ranged_shoot_start_x: f64,
+	pub ranged_shoot_start_y: f64,
+	pub ranged_shoot_target_x: f64,
+	pub ranged_shoot_target_y: f64,
+	pub ranged_animation_timer: f64,
+	pub rush_cooldown: f64,
+	pub rush_dir_x: f64,
+	pub rush_dir_y: f64,
+	pub rush_has_hit: bool,
+	pub rush_timer: f64,
 }
 
 impl CpuRacer {
@@ -127,6 +141,19 @@ impl CpuRacer {
 			bike_knockback_velocity: Vec2d::new(0.0, 0.0),
 			bike_knockback_duration: 0.0,	
 			phase: 1,
+			ranged_cooldown: 0.0,
+			ranged_shoot_visible: false,
+			ranged_shoot_timer: 0.0,
+			ranged_shoot_start_x: 0.0,
+			ranged_shoot_start_y: 0.0,
+			ranged_shoot_target_x: 0.0,
+			ranged_shoot_target_y: 0.0,
+			ranged_animation_timer: 0.0,
+			rush_cooldown: 0.0,
+			rush_dir_x: 0.0,
+			rush_dir_y: 0.0,
+			rush_has_hit: false,
+			rush_timer: 0.0,
         }
     }
 
@@ -167,7 +194,21 @@ impl CpuRacer {
             if self.knockback_duration <= 0.0 {
                 self.knockback_velocity = Vec2d::new(0.0, 0.0);
             }
-        } else if self.stun_timer <= 0.0 && !self.is_crashed {
+		} else if self.rush_active {
+			// Rush movement logic
+			self.rush_timer -= dt;
+			if self.rush_timer <= 0.0 {
+				self.rush_active = false;
+			} else {
+				let rush_speed = 1800.0;
+				let speed_mult = if self.boost { 1.25 } else { 1.0 } * rut_mult;
+				self.x += self.rush_dir_x * rush_speed * speed_mult * dt;
+				self.y += self.rush_dir_y * rush_speed * speed_mult * dt;
+				
+				self.x = self.x.max(crate::config::boundaries::MIN_X).min(crate::config::boundaries::MAX_X);
+				self.y = self.y.max(crate::config::boundaries::MIN_Y).min(crate::config::boundaries::MAX_Y);
+			}
+		} else if self.stun_timer <= 0.0 && !self.is_crashed {
 			let pdx = player_x - self.x;
 			let pdy = player_y - self.y;
 			let p_dist = (pdx * pdx + pdy * pdy).sqrt();
@@ -274,7 +315,26 @@ impl CpuRacer {
 			if self.bike_knockback_duration <= 0.0 {
 				self.bike_knockback_velocity = Vec2d::new(0.0, 0.0);
 			}
-		}						
+		}	
+		
+		if self.ranged_cooldown > 0.0 {
+			self.ranged_cooldown -= dt;
+		}
+
+		if self.ranged_shoot_visible {
+			self.ranged_shoot_timer -= dt;
+			if self.ranged_shoot_timer <= 0.0 {
+				self.ranged_shoot_visible = false;
+			}
+		}
+	
+		if self.ranged_animation_timer > 0.0 {
+			self.ranged_animation_timer -= dt;
+ 		}	
+		
+		if self.rush_cooldown > 0.0 {
+			self.rush_cooldown -= dt;
+		}		
     }
 	
 	pub fn check_collision(
@@ -317,6 +377,31 @@ impl CpuRacer {
  				let b_h = crashed_bike_tex.get_height() as f64;
  				image(crashed_bike_tex, c.transform.trans(self.bike_x - b_w / 2.0, self.bike_y - b_h / 2.0), g);
  			}
+			
+ 			if self.ranged_shoot_visible {
+ 				let sx = self.ranged_shoot_start_x;
+ 				let sy = self.ranged_shoot_start_y;
+ 				let ex = self.ranged_shoot_target_x;
+ 				let ey = self.ranged_shoot_target_y;
+ 				let ldxs = ex - sx;
+ 				let ldys = ey - sy;
+ 				let bls = (ldxs * ldxs + ldys * ldys).sqrt();
+ 				if bls > 0.0 {
+ 					let mut ers = rand::rng();
+ 					for (lm, ofr, col, w) in [
+ 						(0.7, 5.0, [0.8, 0.8, 1.0, 0.7], 1.0),
+ 						(1.2, 8.0, [0.7, 0.7, 0.9, 0.6], 1.5),
+ 					] {
+ 						let ox = ers.random_range(-ofr..ofr);
+ 						let oy = ers.random_range(-ofr..ofr);
+ 						let ndx = ldxs / bls;
+ 						let ndy = ldys / bls;
+ 						let efx = sx + ndx * bls * lm + ox;
+ 						let efy = sy + ndy * bls * lm + oy;
+ 						line(col, w, [sx + ox, sy + oy, efx, efy], c.transform, g);
+ 					}
+ 				}
+ 			}			
  
  			if self.is_crashed {
  				let tex = &textures.block_break;
@@ -341,6 +426,18 @@ impl CpuRacer {
 				} else {
 					&textures.strike[current_texture_index]
 				}
+  			} else if self.ranged_animation_timer > 0.0 {
+ 				if self.state == RacerState::OnBike {
+ 					&textures.bike_ranged
+ 				} else {
+ 					&textures.ranged
+ 				}			
+ 			} else if self.rush_active {
+ 				if self.state == RacerState::OnBike {
+ 					&textures.bike_rush
+ 				} else {
+ 					&textures.rush
+ 				}				
 			} else if self.state == RacerState::OnBike {
 				if self.movement_active {
 					&textures.bike_accelerate[0] 
