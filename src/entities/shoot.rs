@@ -98,6 +98,9 @@ impl Shoot {
         if self.active && CPU_ENABLED {
             let mut hit_entity = false;
             for cpu_entity in cpu_entities.iter_mut() {
+                if cpu_entity.entity_state == crate::game_state::EntityState::Friendly {
+                    continue;
+                }				
                 if check_line_collision(
                     self.start_x,
                     self.start_y,
@@ -174,6 +177,7 @@ impl Shoot {
             if !hit_entity && current_field == crate::map_system::FieldId(0, 0) {
                 for cr in cpu_racers.iter_mut() {
                     if cr.is_crashed { continue; }
+					if cr.entity_state == crate::game_state::EntityState::Friendly { continue; }
                     if check_line_collision(
                         self.start_x,
                         self.start_y,
@@ -182,6 +186,9 @@ impl Shoot {
                         cr.x,
                         cr.y,
                     ) {
+					    if cr.entity_state == crate::game_state::EntityState::Neutral {
+					 	   cr.entity_state = crate::game_state::EntityState::Hostile;
+					    }						
                         let mut damage = fighter.ranged_damage;
                         if fighter.state == RacerState::OnBike {
                             damage *= 0.1;

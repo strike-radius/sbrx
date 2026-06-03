@@ -6,6 +6,7 @@ use crate::rand::Rng;
 use crate::utils::math::safe_gen_range;
 use crate::utils::vec2d::Vec2d;
 use crate::AudioManager;
+use crate::game_state::EntityState;
 use piston_window::*;
 
 use crate::{BUNKER_HEIGHT, BUNKER_ORIGIN_X, BUNKER_ORIGIN_Y, BUNKER_WIDTH};
@@ -87,6 +88,7 @@ pub struct CpuEntity {
     pub stun_timer: f64,
     pub bleed_effect: Option<BleedEffect>,
     pub skill_manager: SkillManager,
+	pub entity_state: EntityState,
 }
 
 impl CpuEntity {
@@ -115,6 +117,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -146,6 +149,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager,
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -176,6 +180,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager,
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -206,6 +211,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager,
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -234,6 +240,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -262,6 +269,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -290,6 +298,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -318,6 +327,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -346,6 +356,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager: SkillManager::new(),
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -376,6 +387,7 @@ impl CpuEntity {
             stun_timer: 0.0,
             bleed_effect: None,
             skill_manager, // add skill 3/3
+			entity_state: EntityState::Hostile,
         }
     }
 
@@ -474,6 +486,24 @@ impl CpuEntity {
                 visual_effect: None,
             };
         }
+		
+        if self.entity_state == EntityState::Friendly {
+            if self.knockback_duration > 0.0 {
+                self.x += self.knockback_velocity.x * dt;
+                self.y += self.knockback_velocity.y * dt;
+                self.knockback_duration -= dt;
+                if self.knockback_duration <= 0.0 {
+                    self.knockback_velocity = Vec2d::new(0.0, 0.0);
+                }
+            }
+            self.x = self.x.max(MIN_X).min(MAX_X);
+            self.y = self.y.max(MIN_Y).min(MAX_Y);
+ 
+            return CpuUpdateResult {
+                damage_to_player: None,
+                visual_effect: None,
+            };
+        }		
 
         // Update bleed effect
         if let Some(ref mut bleed) = self.bleed_effect {
@@ -717,8 +747,13 @@ impl CpuEntity {
         );
 
         let current_hp_width = (self.current_hp / self.max_hp).max(0.0) * hp_bar_width;
+        let hp_bar_color = match self.entity_state {
+            EntityState::Hostile => [1.0, 0.27, 0.0, 1.0], // red orange
+            EntityState::Neutral => [1.0, 1.0, 0.0, 1.0],  // Yellow
+            EntityState::Friendly => [0.0, 1.0, 0.0, 1.0], // Green
+        };		
         rectangle(
-            [1.0, 0.27, 0.0, 1.0], // red orange
+            hp_bar_color,
             [
                 self.x - hp_bar_width / 2.0,
                 hp_bar_world_y,
@@ -760,7 +795,7 @@ impl CpuEntity {
         is_blocking: bool,
         _audio_manager: &AudioManager,
     ) -> bool {
-        if !CPU_ENABLED {
+        if !CPU_ENABLED || self.entity_state == EntityState::Friendly {
             return false;
         }
 

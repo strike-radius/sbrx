@@ -9,6 +9,7 @@ use crate::entities::strike::Strike; // For strike visual
 use crate::game_state::RacerState;
 use crate::DamageText;
 use piston_window::*; // For strike collision check
+use crate::EntityState;
 use crate::utils::vec2d::Vec2d;
 
 // Base values for Kinetic Strike
@@ -405,6 +406,9 @@ impl BlockSystem {
         // Apply damage and knockback to CPUs
         if crate::config::CPU_ENABLED && !is_paused {
             for cpu in cpu_entities.iter_mut() {
+                if cpu.entity_state == EntityState::Friendly {
+                    continue;
+                }				
                 let strike_dx = world_x - cpu.x;
                 let strike_dy = world_y - cpu.y;
                 if (strike_dx * strike_dx + strike_dy * strike_dy).sqrt() < strike_radius {
@@ -447,9 +451,13 @@ impl BlockSystem {
             if current_field == crate::map_system::FieldId(0, 0) {
                 for cr in cpu_racers.iter_mut() {
                     if cr.is_crashed { continue; }
+					if cr.entity_state == EntityState::Friendly { continue; }
                     let strike_dx = world_x - cr.x;
                     let strike_dy = world_y - cr.y;
                     if (strike_dx * strike_dx + strike_dy * strike_dy).sqrt() < strike_radius {
+                        if cr.entity_state == EntityState::Neutral {
+                            cr.entity_state = EntityState::Hostile;
+                        }						
                         let mut damage = fighter.melee_damage * effectiveness_multiplier;
                         let knockback_force = KINETIC_STRIKE_BASE_KNOCKBACK * effectiveness_multiplier;
  

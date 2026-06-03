@@ -1,6 +1,5 @@
 // File: src/game_state.rs
 
-// NOTE: Removed #[derive(PartialEq)] from GameState
 pub enum GameState {
     TitleScreen,
     Playing,
@@ -11,6 +10,13 @@ pub enum GameState {
     },
     LoadingFirmament,                        // Added state for the loading screen
     FirmamentMode(Box<firmament_lib::Game>), // Added state for Firmament sub-game
+}
+
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub enum EntityState {
+	Hostile,
+	Neutral,
+	Friendly,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]

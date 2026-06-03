@@ -48,6 +48,7 @@ extern crate piston_window;
 extern crate rand;
 extern crate rodio;
 
+use crate::game_state::EntityState;
 use crate::entities::collision_barriers::{CollisionBarrierManager, JumpZoneType};
 
 use crate::game_state::AmbientTrackState;
@@ -397,6 +398,10 @@ fn handle_melee_strike<'a>(
             let mut point_hit_applied = false;
 
             for cpu in cpu_entities.iter_mut() {
+                if cpu.entity_state == EntityState::Friendly {
+                    continue;
+                }				
+				
                 let mut total_damage_this_cpu = 0.0;
                 let mut was_point_hit = false;
                 let mut was_frontal_hit = false;
@@ -509,6 +514,7 @@ fn handle_melee_strike<'a>(
                 let mut r_point_hit_applied = false;
                 for cr in cpu_racers.iter_mut() {
                     if cr.is_crashed { continue; }
+					if cr.entity_state == EntityState::Friendly { continue; }
                     let mut total_damage_this_cr = 0.0;
                     let mut was_point_hit = false;
                     let mut was_frontal_hit = false;
@@ -540,6 +546,9 @@ fn handle_melee_strike<'a>(
                     }
  
                     if total_damage_this_cr > 0.0 {
+                        if cr.entity_state == EntityState::Neutral {
+                            cr.entity_state = EntityState::Hostile;
+                        }						
                         cr.current_hp -= total_damage_this_cr;
                         
                         if was_point_hit && result.finisher_hit_count < 5 && fighter.fighter_type == FighterType::Racer {
@@ -875,7 +884,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.19 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.20 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -919,7 +928,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.19 Window created.");
+    println!("sbrx0.2.20 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1658,7 +1667,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.19 Starting game loop...");
+    println!("sbrx0.2.20 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -2025,7 +2034,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.19 Playing state.");
+                    println!("Transitioning to sbrx0.2.20 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -2047,7 +2056,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 19";
+                        let version_text = "v0 . 2 . 20";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -4146,7 +4155,7 @@ fn main() {
 								let dist = (dx * dx + dy * dy).sqrt();
  								
                             // RUSH attack trigger
-                            if dist < 400.0 && cr.rush_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active {
+                            if dist < 400.0 && cr.rush_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active && cr.entity_state == EntityState::Hostile {
                                 cr.rush_active = true;
                                 cr.rush_timer = 0.25;
                                 cr.rush_cooldown = 3.0; // cpu_racer rush attack cooldown
@@ -4271,7 +4280,7 @@ fn main() {
                             }								
 								
 								// Ranged attack trigger
-								if dist < 800.0 && dist >= 100.0 && cr.ranged_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active {
+								if dist < 800.0 && dist >= 100.0 && cr.ranged_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active && cr.entity_state == EntityState::Hostile {
 									cr.ranged_cooldown = 1.5; // cpu_racer ranged attack cooldown
 									cr.ranged_shoot_visible = true;
 									cr.ranged_shoot_timer = 0.1;
@@ -8778,7 +8787,11 @@ fn main() {
  
                                             if CPU_ENABLED {
                                                 for cpu in cpu_entities.iter_mut() {
-																						if check_line_collision(ix, iy, cex, cey, cpu.x, cpu.y) {
+                                                    if cpu.entity_state == EntityState::Friendly {
+                                                        continue;
+                                                    }													
+													
+													if check_line_collision(ix, iy, cex, cey, cpu.x, cpu.y) {
 														let mut rush_damage = fighter.melee_damage; // * effectiveness_multiplier;
 														// 25% damage boost while ATOMIC-STATE is active
 														if fighter.invincible_timer > 1.0 {
@@ -8813,7 +8826,11 @@ fn main() {
                                                 if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                                     for cr in cpu_racers.iter_mut() {
                                                         if cr.is_crashed { continue; }
+														if cr.entity_state == EntityState::Friendly { continue; }
                                                         if check_line_collision(ix, iy, cex, cey, cr.x, cr.y) {
+                                                            if cr.entity_state == EntityState::Neutral {
+                                                                cr.entity_state = EntityState::Hostile;
+                                                            }															
                                                             let mut rush_damage = fighter.melee_damage;
                                                             if fighter.invincible_timer > 1.0 {
                                                                 rush_damage *= 1.25;
@@ -8971,6 +8988,10 @@ fn main() {
 
                                             if CPU_ENABLED {
                                                 for cpu in cpu_entities.iter_mut() {
+                                                    if cpu.entity_state == EntityState::Friendly {
+                                                        continue;
+                                                    }													
+													
                                                     if check_line_collision(
                                                         ix, iy, cex, cey, cpu.x, cpu.y,
                                                     ) {
@@ -9013,7 +9034,11 @@ fn main() {
                                                 if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
                                                     for cr in cpu_racers.iter_mut() {
                                                         if cr.is_crashed { continue; }
+                                                        if cr.entity_state == EntityState::Friendly { continue; }
                                                         if check_line_collision(ix, iy, cex, cey, cr.x, cr.y) {
+                                                            if cr.entity_state == EntityState::Neutral {
+                                                                cr.entity_state = EntityState::Hostile;
+                                                            }
                                                             let mut rush_damage = fighter.melee_damage;
                                                             if fighter.invincible_timer > 1.0 {
                                                                 rush_damage *= 1.25;
@@ -11709,5 +11734,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.19 Game loop ended.");
+    println!("sbrx0.2.20 Game loop ended.");
 }

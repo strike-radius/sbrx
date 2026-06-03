@@ -9,6 +9,7 @@ use crate::game_state::{CombatMode, RacerState, MovementDirection};
 use crate::utils::vec2d::Vec2d;
 use crate::graphics::fighter_textures::FighterTextures;
 use crate::entities::cpu_entity::BleedEffect;
+use crate::game_state::EntityState;
 use piston_window::*;
 
 pub struct CpuRacer {
@@ -74,6 +75,7 @@ pub struct CpuRacer {
 	pub rush_dir_y: f64,
 	pub rush_has_hit: bool,
 	pub rush_timer: f64,
+	pub entity_state: EntityState,
 }
 
 impl CpuRacer {
@@ -154,6 +156,7 @@ impl CpuRacer {
 			rush_dir_y: 0.0,
 			rush_has_hit: false,
 			rush_timer: 0.0,
+			entity_state: EntityState::Neutral,
         }
     }
 
@@ -215,7 +218,7 @@ impl CpuRacer {
 
 			let medium_proximity = 800.0;
 
-			if p_dist < medium_proximity {
+			if p_dist < medium_proximity && self.entity_state == EntityState::Hostile {
 				// Pursuit mode (locked-on to player_racer)
 				if p_dist > 0.0 {
 					let speed = if self.state == RacerState::OnFoot {
@@ -344,7 +347,7 @@ impl CpuRacer {
 		is_blocking: bool,
 		_audio_manager: &AudioManager,
 	) -> bool {
- 			if self.is_crashed || self.current_hp <= 0.0 || self.stun_timer > 0.0 {
+ 			if self.is_crashed || self.current_hp <= 0.0 || self.stun_timer > 0.0 || self.entity_state != EntityState::Hostile {
  				self.is_attacking = false;
  				return false;
  			}		
@@ -477,8 +480,13 @@ impl CpuRacer {
         );
 
         let current_hp_width = (self.current_hp / self.max_hp).max(0.0) * hp_bar_width;
+		let hp_color = match self.entity_state {
+			EntityState::Hostile => [1.0, 0.0, 0.0, 1.0], // Red
+			EntityState::Neutral => [1.0, 1.0, 0.0, 1.0], // Yellow
+			EntityState::Friendly => [0.0, 1.0, 0.0, 1.0], // Green
+		};		
         piston_window::rectangle(
-            [1.0, 0.0, 0.0, 1.0], // Red color for CPU RACER
+            hp_color,
             [self.x - hp_bar_width / 2.0, hp_bar_world_y, current_hp_width, hp_bar_height],
             c.transform,
             g,
