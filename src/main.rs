@@ -576,29 +576,6 @@ fn handle_melee_strike<'a>(
                         }
  
                         if cr.current_hp <= 0.0 {
-                            cr.current_hp = 0.0;
-                            cr.is_crashed = true;
-                            cr.state = RacerState::OnFoot;
-							// Reset AI attacking
-                            cr.is_attacking = false;
-                            cr.stun_timer = 1.0;
- 
-                            let kx = cr.x - wmx;
-                            let ky = cr.y - wmy;
-                            let angle = ky.atan2(kx);
- 
-                            let force = 800.0;
-                            cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
-                            cr.knockback_duration = 0.4;
- 
-							if cr.phase == 1 {
-							   cr.bike_x = cr.x;
-							   cr.bike_y = cr.y;
-							   let bike_angle = angle + 0.5;
-							   cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
-							   cr.bike_knockback_duration = 0.5;
-							}						
-                        } else {
                             if was_point_hit {
                                 if result.knockback {
                                     let kx = cr.x - wmx;
@@ -884,7 +861,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.20 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.21 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -928,7 +905,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.20 Window created.");
+    println!("sbrx0.2.21 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1667,7 +1644,7 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.20 Starting game loop...");
+    println!("sbrx0.2.21 Starting game loop...");
     while let Some(e) = window.next() {
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
@@ -2034,7 +2011,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.20 Playing state.");
+                    println!("Transitioning to sbrx0.2.21 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -2056,7 +2033,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 20";
+                        let version_text = "v0 . 2 . 21";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -2669,10 +2646,20 @@ fn main() {
                                                     (x, -40.0)
                                                 }
                                             };
-                                            let start_x = fighter.x + offset_x;
-                                            let start_y = fighter.y + offset_y;
+									let _start_x = fighter.x + offset_x;
+									let _start_y = fighter.y + offset_y;
 
-                                            shoot.trigger(start_x, start_y, wmx, wmy);
+                                    let mut target_x = wmx;
+                                    let mut target_y = wmy;
+                                    let dx = wmx - fighter.x;
+                                    let dy = wmy - fighter.y;
+                                    let dist = (dx * dx + dy * dy).sqrt();
+                                    let max_range = 800.0;
+                                    if dist > max_range {
+                                        target_x = fighter.x + (dx / dist) * max_range;
+                                        target_y = fighter.y + (dy / dist) * max_range;
+                                    }
+                                    shoot.trigger(fighter.x, fighter.y, target_x, target_y);
 
                                             current_racer_texture = current_ranged_texture;
                                             strike_animation_timer = 0.25;
@@ -7237,7 +7224,10 @@ fn main() {
                         let cur_h = cur_tex.get_height() as f64;
                         let can_shoot_ranged = fighter.combat_mode == CombatMode::Ranged
                             || (fighter.combat_mode == CombatMode::Balanced && ds_c > 1.0);
-                        if can_shoot_ranged && shoot.cooldown > 0.0 {
+                        let dist_to_mouse = ((wmxc - fighter.x).powi(2) + (wmxyc - fighter.y).powi(2)).sqrt();
+                        let is_beyond_range = can_shoot_ranged && dist_to_mouse > fighter.get_shoot_radius();
+ 
+                        if (can_shoot_ranged && shoot.cooldown > 0.0) || is_beyond_range {
                             piston_window::rectangle(
                                 [1.0, 0.0, 0.0, 0.5],
                                 [wmxc - cur_w / 2.0, wmxyc - cur_h / 2.0, cur_w, cur_h],
@@ -7317,9 +7307,8 @@ fn main() {
                             image(
                                 current_ranged_marker_texture,
                                 tc.transform.trans(
-                                    wmxc - (current_ranged_marker_texture.get_width() as f64 / 2.0),
-                                    wmxyc
-                                        - (current_ranged_marker_texture.get_height() as f64 / 2.0),
+                                    shoot.target_x - (current_ranged_marker_texture.get_width() as f64 / 2.0),
+                                    shoot.target_y - (current_ranged_marker_texture.get_height() as f64 / 2.0),
                                 ),
                                 g,
                             );
@@ -8008,7 +7997,18 @@ fn main() {
                                             && shoot.cooldown <= 0.0
                                         {
                                             audio_manager.play_sound_effect("ranged").ok();
-                                            shoot.trigger(fighter.x, fighter.y, wmx, wmy);
+
+                                            let mut target_x = wmx;
+                                            let mut target_y = wmy;
+                                            let dx = wmx - fighter.x;
+                                            let dy = wmy - fighter.y;
+                                            let dist = (dx * dx + dy * dy).sqrt();
+                                            let max_range = fighter.get_shoot_radius();
+                                            if dist > max_range {
+                                                target_x = fighter.x + (dx / dist) * max_range;
+                                                target_y = fighter.y + (dy / dist) * max_range;
+                                            }
+                                            shoot.trigger(fighter.x, fighter.y, target_x, target_y);
                                             shoot.cooldown = RACER_RANGED_COOLDOWN;
                                             current_racer_texture = current_ranged_texture;
                                             strike_animation_timer = 0.25;
@@ -8855,29 +8855,7 @@ fn main() {
                                                                 lifetime: 0.5,
                                                             });
  
-                                                            if cr.current_hp <= 0.0 {
-                                                                cr.current_hp = 0.0;
-                                                                cr.is_crashed = true;
-                                                                cr.state = RacerState::OnFoot;
-                                                                cr.is_attacking = false;
-                                                                cr.stun_timer = 1.0;
- 
-                                                                let kx = cr.x - ix;
-                                                                let ky = cr.y - iy;
-                                                                let angle = ky.atan2(kx);
- 
-                                                                let force = 800.0;
-                                                                cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
-                                                                cr.knockback_duration = 0.4;
- 
-																if cr.phase == 1 {
-																   cr.bike_x = cr.x;
-																   cr.bike_y = cr.y;
-																   let bike_angle = angle + 0.5;
-																   cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
-																   cr.bike_knockback_duration = 0.5;
-																}													
-                                                            } else {
+                                                            if cr.current_hp > 0.0 {
                                                                 let kx = cr.x - ix;
                                                                 let ky = cr.y - iy;
                                                                 let k_dist = (kx * kx + ky * ky).sqrt();
@@ -9063,29 +9041,7 @@ fn main() {
                                                                 lifetime: 0.5,
                                                             });
  
-                                                            if cr.current_hp <= 0.0 {
-                                                                cr.current_hp = 0.0;
-                                                                cr.is_crashed = true;
-                                                                cr.state = RacerState::OnFoot;
-                                                                cr.is_attacking = false;
-                                                                cr.stun_timer = 1.0;
- 
-                                                                let kx = cr.x - ix;
-                                                                let ky = cr.y - iy;
-                                                                let angle = ky.atan2(kx);
- 
-                                                                let force = 800.0;
-                                                                cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
-                                                                cr.knockback_duration = 0.4;
- 
-																if cr.phase == 1 {
-																   cr.bike_x = cr.x;
-																   cr.bike_y = cr.y;
-																   let bike_angle = angle + 0.5;
-																   cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
-																   cr.bike_knockback_duration = 0.5;
-																}															
-                                                            } else {
+                                                            if cr.current_hp > 0.0 {
                                                                 let kx = cr.x - ix;
                                                                 let ky = cr.y - iy;
                                                                 let k_dist = (kx * kx + ky * ky).sqrt();
@@ -10451,6 +10407,27 @@ fn main() {
                         )]);
                     }
                     // --- END FIX ---
+					
+                    if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                        for cr in &mut cpu_racers {
+                            cr.current_hp = cr.max_hp;
+                            cr.entity_state = EntityState::Neutral;
+                            cr.is_crashed = false;
+                            cr.state = RacerState::OnBike;
+                            cr.phase = 1;
+                            cr.is_attacking = false;
+                            cr.stun_timer = 0.0;
+                            cr.knockback_velocity = Vec2d::new(0.0, 0.0);
+                            cr.knockback_duration = 0.0;
+                            cr.bike_knockback_velocity = Vec2d::new(0.0, 0.0);
+                            cr.bike_knockback_duration = 0.0;
+                            if !cr.waypoints.is_empty() {
+                                cr.x = cr.waypoints[0].x;
+                                cr.y = cr.waypoints[0].y;
+                                cr.current_wp = 0;
+                            }
+                        }
+                    }					
 
                     cpu_entities.clear();
                     let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
@@ -11734,5 +11711,5 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.20 Game loop ended.");
+    println!("sbrx0.2.21 Game loop ended.");
 }

@@ -4,7 +4,7 @@ use crate::AudioManager;
 use crate::rand::Rng;
 use crate::combat::block::BlockSystem;
 use crate::combat::combo::ComboSystem;
-use crate::combat::stats::{Stats, RACER_LVL1_STATS};
+use crate::combat::stats::{Stats, CPU_RACER_LVL1_STATS};
 use crate::game_state::{CombatMode, RacerState, MovementDirection};
 use crate::utils::vec2d::Vec2d;
 use crate::graphics::fighter_textures::FighterTextures;
@@ -76,11 +76,12 @@ pub struct CpuRacer {
 	pub rush_has_hit: bool,
 	pub rush_timer: f64,
 	pub entity_state: EntityState,
+	pub reset_timer: f64,
 }
 
 impl CpuRacer {
     pub fn new(x: f64, y: f64) -> Self {
-        let stats = RACER_LVL1_STATS;
+        let stats = CPU_RACER_LVL1_STATS;
         Self {
             x,
             y,
@@ -157,10 +158,34 @@ impl CpuRacer {
 			rush_has_hit: false,
 			rush_timer: 0.0,
 			entity_state: EntityState::Neutral,
+			reset_timer: 0.0,
         }
     }
 
     pub fn update(&mut self, dt: f64, rut_mult: f64, player_x: f64, player_y: f64, audio_manager: &crate::audio::AudioManager) {
+		// Centralized Crash/Defeat state transition
+		if self.current_hp <= 0.0 && !self.is_crashed {
+			self.current_hp = 0.0;
+			self.is_crashed = true;
+			self.state = RacerState::OnFoot;
+			self.is_attacking = false;
+			self.stun_timer = 1.0;
+
+			if self.phase == 1 {
+				self.bike_x = self.x;
+				self.bike_y = self.y;
+				if self.bike_knockback_duration <= 0.0 {
+					let bike_angle = if self.facing_left { 0.0 } else { std::f64::consts::PI } + 0.5;
+					self.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
+					self.bike_knockback_duration = 0.5;
+				}
+			}
+			if self.phase == 2 {
+				self.phase = 3;
+				self.reset_timer = 5.0;
+			}
+			println!("CpuRacer HP hit 0 centrally! Transitioned to Phase: {}", self.phase);
+		}		
         // Apply Bleed
         if let Some(ref mut bleed) = self.bleed_effect {
             bleed.tick_timer += dt;
@@ -225,7 +250,7 @@ impl CpuRacer {
 						self.stats.speed.run_speed
 					} else {
 						let base_speed = 650.0; // Standard BIKE_SPEED
-						let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
+						let speed_bonus = (self.stats.speed.run_speed - CPU_RACER_LVL1_STATS.speed.run_speed).max(0.0);
 						base_speed + speed_bonus
 					};
 					let speed_mult = if self.boost { 1.25 } else { 1.0 } * rut_mult;
@@ -259,7 +284,7 @@ impl CpuRacer {
 							self.stats.speed.run_speed
 						} else {
 							let base_speed = 650.0; // Standard BIKE_SPEED
-							let speed_bonus = (self.stats.speed.run_speed - RACER_LVL1_STATS.speed.run_speed).max(0.0);
+							let speed_bonus = (self.stats.speed.run_speed - CPU_RACER_LVL1_STATS.speed.run_speed).max(0.0);
 							base_speed + speed_bonus
 						};
 						let speed_mult = if self.boost { 1.25 } else { 1.0 } * rut_mult;
@@ -337,7 +362,32 @@ impl CpuRacer {
 		
 		if self.rush_cooldown > 0.0 {
 			self.rush_cooldown -= dt;
-		}		
+		}
+		if self.phase == 3 {
+			if self.reset_timer > 0.0 {
+				self.reset_timer -= dt;
+				if self.reset_timer <= 0.0 {
+					self.current_hp = self.max_hp;
+					self.entity_state = EntityState::Neutral;
+					self.is_crashed = false;
+					self.state = RacerState::OnBike;
+					self.phase = 1;
+					self.is_attacking = false;
+					self.stun_timer = 0.0;
+					self.knockback_velocity = Vec2d::new(0.0, 0.0);
+					self.knockback_duration = 0.0;
+					self.bike_knockback_velocity = Vec2d::new(0.0, 0.0);
+					self.bike_knockback_duration = 0.0;
+					if !self.waypoints.is_empty() {
+						self.x = self.waypoints[0].x;
+						self.y = self.waypoints[0].y;
+						self.current_wp = 0;
+					}
+					println!("CpuRacer reset after 5 seconds! Phase 1 restored.");
+				}
+			}
+		}
+		
     }
 	
 	pub fn check_collision(

@@ -108,6 +108,13 @@ impl Fighter {
 			bleed_effect: None,
         }
     }
+    pub fn get_shoot_radius(&self) -> f64 {
+        match self.fighter_type {
+            FighterType::Racer => 500.0,
+            FighterType::Soldier => 750.0, 
+            FighterType::Raptor => 100.0,
+        }
+    }
 
     pub fn switch_fighter_type(&mut self, fighter_type: FighterType) -> f64 {
         // Store current fuel before switching

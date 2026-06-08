@@ -481,29 +481,7 @@ impl BlockSystem {
                             lifetime: 0.25,
                         });
  
-                        if cr.current_hp <= 0.0 {
-                            cr.current_hp = 0.0;
-                            cr.is_crashed = true;
-                            cr.state = RacerState::OnFoot;
-							cr.is_attacking = false;
-							cr.stun_timer = 1.0;
-
-							let kx = cr.x - world_x;
-							let ky = cr.y - world_y;
-							let angle = ky.atan2(kx);
-
-							let force = 800.0;
-							cr.knockback_velocity = Vec2d::new(angle.cos() * force, angle.sin() * force);
-							cr.knockback_duration = 0.4;
-
-							if cr.phase == 1 {
-							   cr.bike_x = cr.x;
-							   cr.bike_y = cr.y;
-							   let bike_angle = angle + 0.5;
-							   cr.bike_knockback_velocity = Vec2d::new(bike_angle.cos() * 600.0, bike_angle.sin() * 600.0);
-							   cr.bike_knockback_duration = 0.5;
-							}					
-                        } else {
+						if cr.current_hp > 0.0 {
                             let kx = cr.x - world_x;
                             let ky = cr.y - world_y;
                             let k_dist = (kx * kx + ky * ky).sqrt();

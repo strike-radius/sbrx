@@ -48,6 +48,22 @@ pub const RACER_LVL1_STATS: Stats = Stats {
     },
 };
 
+// CPU_RACER
+pub const CPU_RACER_LVL1_STATS: Stats = Stats {
+    defense: DefenseStats {
+        hp: 10.0 * HP_PER_DEFENSE_POINT, 
+        auto_block: 0.02,
+        auto_dodge: 0.02,		
+    },
+    attack: AttackStats {
+        melee_damage: 1.0 * DAMAGE_PER_ATTACK_POINT, // 12.5 Damage
+        ranged_damage: 1.0 * DAMAGE_PER_ATTACK_POINT, // 12.5 Damage
+    },
+    speed: SpeedStats {
+        run_speed: 5.0 * SPEED_PER_SPEED_POINT,
+    },
+};
+
 // SOLDIER: { defence: 5, attack: 3, speed: 1 }
 pub const SOLDIER_LVL1_STATS: Stats = Stats {
     defense: DefenseStats {
