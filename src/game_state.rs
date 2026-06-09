@@ -36,7 +36,7 @@ pub enum DeathType {
     RazorFiend,
 }
 
-/// Ambient track state for [M] key cycling
+/// Ambient track state for [L] key cycling
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AmbientTrackState {
     Background,  // background_track.ogg (default)

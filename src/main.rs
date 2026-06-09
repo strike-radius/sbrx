@@ -1534,7 +1534,7 @@ fn main() {
 	let mut title_sound_sink: Option<Sink> = None;
     let mut current_bgm_sink: Option<Sink> = None;
     let mut crickets_sound_sink: Option<Sink> = None;
-	let mut ambient_track_state = AmbientTrackState::Background; // [M] key cycles
+	let mut ambient_track_state = AmbientTrackState::Crickets; // [L] key cycles
     let mut sbrx_map_system = SbrxMapSystem::new("FLATLINE".to_string(), SbrxFieldId(0, 0));
 	let aptitude = get_field_aptitude(sbrx_map_system.current_field_id);
     let mut fog_of_war = FogOfWar::new();

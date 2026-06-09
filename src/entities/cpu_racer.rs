@@ -11,6 +11,7 @@ use crate::graphics::fighter_textures::FighterTextures;
 use crate::entities::cpu_entity::BleedEffect;
 use crate::game_state::EntityState;
 use piston_window::*;
+use rodio::Sink;
 
 pub struct CpuRacer {
     pub x: f64,
@@ -77,6 +78,7 @@ pub struct CpuRacer {
 	pub rush_timer: f64,
 	pub entity_state: EntityState,
 	pub reset_timer: f64,
+	pub bike_sound_sink: Option<Sink>,
 }
 
 impl CpuRacer {
@@ -159,6 +161,7 @@ impl CpuRacer {
 			rush_timer: 0.0,
 			entity_state: EntityState::Neutral,
 			reset_timer: 0.0,
+			bike_sound_sink: None,
         }
     }
 
@@ -387,6 +390,39 @@ impl CpuRacer {
 				}
 			}
 		}
+		
+		// cpu_racer bike sfx
+		let should_play_accel = self.state == RacerState::OnBike 
+			&& self.movement_active 
+			&& !self.is_crashed 
+			&& self.stun_timer <= 0.0;
+
+		if should_play_accel {
+			let max_audible_distance = 1500.0;
+			let dx = self.x - player_x;
+			let dy = self.y - player_y;
+			let distance = (dx * dx + dy * dy).sqrt();
+
+			let raw_volume = if distance >= max_audible_distance {
+				0.0
+			} else {
+				1.0 - (distance / max_audible_distance)
+			};
+			let final_volume = (raw_volume * 1.00) as f32;
+
+			if self.bike_sound_sink.is_none() {
+				if let Ok(sink) = audio_manager.play_sfx_loop("bike_accelerate") {
+					sink.set_volume(final_volume);
+					self.bike_sound_sink = Some(sink);
+				}
+			} else if let Some(ref sink) = self.bike_sound_sink {
+				sink.set_volume(final_volume);
+			}
+		} else {
+			if let Some(sink) = self.bike_sound_sink.take() {
+				sink.stop();
+			}
+		}		
 		
     }
 	
