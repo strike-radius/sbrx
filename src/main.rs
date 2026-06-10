@@ -48,6 +48,10 @@ extern crate piston_window;
 extern crate rand;
 extern crate rodio;
 
+use piston_window::Context;
+use piston_window::G2d;
+use piston_window::Glyphs;
+
 use crate::game_state::EntityState;
 use crate::entities::collision_barriers::{CollisionBarrierManager, JumpZoneType};
 
@@ -808,6 +812,11 @@ fn main() {
     let mut fort_silo_gravity_message_shown = false;
     let mut has_blood_idol_fog_spawned_once: bool = false;
     let mut void_tempest_spawned_for_survivors: bool = false;
+	
+    let mut pressed_keys: HashSet<Key> = HashSet::new();
+    let mut mouse_lmb_pressed = false;
+    let mut mouse_rmb_pressed = false;
+    let mut key_input_display_open = true;	
 
     // Helper function to spawn a random CPU entity for the arena mode
     fn spawn_random_cpu(line_y: f64, stage: u32, arena_timer: f64) -> CpuEntity {
@@ -861,7 +870,7 @@ fn main() {
         new_cpu
     }
 
-    println!("Initializing sbrx0.2.21 game with line_y = {}", line_y);
+    println!("Initializing sbrx0.2.22 game with line_y = {}", line_y);
 
  	let exe_path = match env::current_exe() {
  	    Ok(path) => path,
@@ -905,7 +914,7 @@ fn main() {
  	        });
     window.set_position([0, 0]);
 	window.window.window.set_cursor_visible(false);
-    println!("sbrx0.2.21 Window created.");
+    println!("sbrx0.2.22 Window created.");
 
     let sbrx_assets_path = find_assets_folder(&exe_dir);
     let mut texture_context = window.create_texture_context();
@@ -1644,8 +1653,33 @@ fn main() {
 
     let mut firmament_load_requested = false; // New flag to control the loading sequence
 
-    println!("sbrx0.2.21 Starting game loop...");
+    println!("sbrx0.2.22 Starting game loop...");
     while let Some(e) = window.next() {
+        // Track key and mouse input globally
+        if let Some(Button::Keyboard(key)) = e.press_args() {
+            pressed_keys.insert(key);
+            if key == Key::I {
+                key_input_display_open = !key_input_display_open;
+            }
+        }
+        if let Some(Button::Keyboard(key)) = e.release_args() {
+            pressed_keys.remove(&key);
+        }
+        if let Some(Button::Mouse(button)) = e.press_args() {
+            match button {
+                MouseButton::Left => mouse_lmb_pressed = true,
+                MouseButton::Right => mouse_rmb_pressed = true,
+                _ => {}
+            }
+        }
+        if let Some(Button::Mouse(button)) = e.release_args() {
+            match button {
+                MouseButton::Left => mouse_lmb_pressed = false,
+                MouseButton::Right => mouse_rmb_pressed = false,
+                _ => {}
+            }
+        }		
+		
         // This block now handles the blocking load AFTER the loading screen has been rendered.
         if firmament_load_requested {
             firmament_load_requested = false; // Reset the flag
@@ -2011,7 +2045,7 @@ fn main() {
                     fighter_jet_world_y = DEFAULT_FIGHTER_JET_WORLD_Y;
                     next_firmament_entry_field_id = firmament_lib::FieldId3D(-2, 5, 0);
                     crashed_fighter_jet_sites.clear();
-                    println!("Transitioning to sbrx0.2.21 Playing state.");
+                    println!("Transitioning to sbrx0.2.22 Playing state.");
                     has_blood_idol_fog_spawned_once = false;
                     check_and_display_demonic_presence(
                         &sbrx_map_system.current_field_id,
@@ -2033,7 +2067,7 @@ fn main() {
                         );
 
                         // Draw Version Number
-                        let version_text = "v0 . 2 . 21";
+                        let version_text = "v0 . 2 . 22";
                         let font_size = 20;
                         let text_color = [0.0, 1.0, 0.0, 1.0]; // GrEEN
                         let text_x = 10.0;
@@ -7852,6 +7886,18 @@ fn main() {
 
                         // Draw on-screen warnings on top of everything
                         chatbox.draw_warnings(oc, g, &mut glyphs);
+						
+                        // Draw key input display
+                        if key_input_display_open {
+                            draw_key_input_display(
+                                oc,
+                                g,
+                                &mut glyphs,
+                                &pressed_keys,
+                                mouse_lmb_pressed,
+                                mouse_rmb_pressed,
+                            );
+                        }						
 
                         glyphs.factory.encoder.flush(device);
                     });
@@ -11711,5 +11757,177 @@ fn main() {
             game_state = new_state;
         }
     }
-    println!("sbrx0.2.21 Game loop ended.");
+	
+	fn draw_key_input_display(
+		c: Context,
+		g: &mut G2d,
+		glyphs: &mut Glyphs,
+		pressed_keys: &HashSet<Key>,
+		mouse_lmb_pressed: bool,
+		mouse_rmb_pressed: bool,
+	) {
+		let w_cell = 45.0;
+		let h_cell = 45.0;
+		let base_x = 1920.0 - (7.0 * w_cell) - 50.0;
+		let base_y = 1080.0 - (5.0 * h_cell) - 50.0;
+
+		// Translucent background
+		piston_window::rectangle(
+			[0.0, 0.0, 0.0, 0.4],
+			[base_x, base_y, 7.0 * w_cell, 5.0 * h_cell],
+			c.transform,
+			g,
+		);
+
+		struct KeyBlock {
+			text: &'static str,
+			keys: Vec<Key>,
+			col_start: usize,
+			row_start: usize,
+			col_span: usize,
+			row_span: usize,
+		}
+
+		let key_blocks = vec![
+			// Row 0: F-keys
+			KeyBlock { text: "F1", keys: vec![Key::F1], col_start: 0, row_start: 0, col_span: 1, row_span: 1 },
+			KeyBlock { text: "F2", keys: vec![Key::F2], col_start: 1, row_start: 0, col_span: 1, row_span: 1 },
+			KeyBlock { text: "F3", keys: vec![Key::F3], col_start: 2, row_start: 0, col_span: 1, row_span: 1 },
+			KeyBlock { text: "F4", keys: vec![Key::F4], col_start: 3, row_start: 0, col_span: 1, row_span: 1 },
+			KeyBlock { text: "F5", keys: vec![Key::F5], col_start: 4, row_start: 0, col_span: 1, row_span: 1 },
+			
+			// Row 1: Numbers
+			KeyBlock { text: "1", keys: vec![Key::D1], col_start: 0, row_start: 1, col_span: 1, row_span: 1 },
+			KeyBlock { text: "2", keys: vec![Key::D2], col_start: 1, row_start: 1, col_span: 1, row_span: 1 },
+			KeyBlock { text: "3", keys: vec![Key::D3], col_start: 2, row_start: 1, col_span: 1, row_span: 1 },
+			KeyBlock { text: "4", keys: vec![Key::D4], col_start: 3, row_start: 1, col_span: 1, row_span: 1 },
+			KeyBlock { text: "5", keys: vec![Key::D5], col_start: 4, row_start: 1, col_span: 1, row_span: 1 },
+			
+			// Row 2: Shift, W, empty slots
+			KeyBlock { text: "SHIFT", keys: vec![Key::LShift, Key::RShift], col_start: 0, row_start: 2, col_span: 2, row_span: 1 },
+			KeyBlock { text: "W", keys: vec![Key::W, Key::Up], col_start: 2, row_start: 2, col_span: 1, row_span: 1 },
+			KeyBlock { text: "", keys: vec![], col_start: 3, row_start: 2, col_span: 1, row_span: 1 },
+			KeyBlock { text: "", keys: vec![], col_start: 4, row_start: 2, col_span: 1, row_span: 1 },
+			
+			// Row 3: Blank, A, S, D, F
+			KeyBlock { text: "", keys: vec![], col_start: 0, row_start: 3, col_span: 1, row_span: 1 },
+			KeyBlock { text: "A", keys: vec![Key::A, Key::Left], col_start: 1, row_start: 3, col_span: 1, row_span: 1 },
+			KeyBlock { text: "S", keys: vec![Key::S, Key::Down], col_start: 2, row_start: 3, col_span: 1, row_span: 1 },
+			KeyBlock { text: "D", keys: vec![Key::D, Key::Right], col_start: 3, row_start: 3, col_span: 1, row_span: 1 },
+			KeyBlock { text: "F", keys: vec![Key::F], col_start: 4, row_start: 3, col_span: 1, row_span: 1 },
+			
+			// Row 4: Ctrl, Space, V
+			KeyBlock { text: "CTRL", keys: vec![Key::LCtrl, Key::RCtrl], col_start: 0, row_start: 4, col_span: 1, row_span: 1 },
+			KeyBlock { text: "SPACE", keys: vec![Key::Space], col_start: 1, row_start: 4, col_span: 3, row_span: 1 },
+			KeyBlock { text: "V", keys: vec![Key::V], col_start: 4, row_start: 4, col_span: 1, row_span: 1 },
+		];
+
+		let border_color = [0.7, 1.0, 0.0, 1.0];
+		let line_w = 1.5;
+
+		for block in &key_blocks {
+			let x = base_x + block.col_start as f64 * w_cell;
+			let y = base_y + block.row_start as f64 * h_cell;
+			let w = block.col_span as f64 * w_cell;
+			let h = block.row_span as f64 * h_cell;
+
+			let is_active = block.keys.iter().any(|k| pressed_keys.contains(k));
+			let bg_color = if is_active {
+				[0.6, 0.6, 0.6, 0.8]
+			} else {
+				[0.0, 0.0, 0.0, 0.0]
+			};
+
+			piston_window::rectangle(bg_color, [x, y, w, h], c.transform, g);
+			
+			// Outline lines
+			piston_window::line(border_color, line_w, [x, y, x + w, y], c.transform, g);
+			piston_window::line(border_color, line_w, [x, y + h, x + w, y + h], c.transform, g);
+			piston_window::line(border_color, line_w, [x, y, x, y + h], c.transform, g);
+			piston_window::line(border_color, line_w, [x + w, y, x + w, y + h], c.transform, g);
+
+			if !block.text.is_empty() {
+				let font_size = 14;
+				let text_width = glyphs.width(font_size, block.text).unwrap_or(0.0);
+				let text_x = x + (w - text_width) / 2.0;
+				let text_y = y + (h + font_size as f64) / 2.0 - 2.0;
+				text::Text::new_color(border_color, font_size)
+					.draw(
+						block.text,
+						glyphs,
+						&c.draw_state,
+						c.transform.trans(text_x, text_y),
+						g,
+					)
+					.ok();
+			}
+		}
+
+		// Mouse drawing
+		let mx = base_x + 5.0 * w_cell;
+		let my = base_y + 3.0 * h_cell;
+
+		// Convex split parts for LMB (Left Mouse Button)
+		let lmb_part1 = [
+			[mx, my],
+			[mx + w_cell * 0.5, my],
+			[mx + w_cell * 0.5, my + 2.0 * h_cell],
+			[mx, my + 2.0 * h_cell],
+		];
+		let lmb_part2 = [
+			[mx + w_cell * 0.5, my],
+			[mx + w_cell, my],
+			[mx + w_cell, my + h_cell],
+			[mx + w_cell * 0.5, my + h_cell * 1.3],
+		];
+	 
+		// Convex split parts for RMB (Right Mouse Button)
+		let rmb_part1 = [
+			[mx + w_cell, my],
+			[mx + 2.0 * w_cell, my],
+			[mx + 2.0 * w_cell, my + 2.0 * h_cell],
+			[mx + w_cell, my + 2.0 * h_cell],
+		];
+		let rmb_part2 = [
+			[mx + w_cell, my + h_cell],
+			[mx + w_cell, my + 2.0 * h_cell],
+			[mx + w_cell * 0.5, my + 2.0 * h_cell],
+			[mx + w_cell * 0.5, my + h_cell * 1.3],
+		];
+
+		let lmb_bg = if mouse_lmb_pressed { [0.6, 0.6, 0.6, 0.8] } else { [0.0, 0.0, 0.0, 0.0] };
+		let rmb_bg = if mouse_rmb_pressed { [0.6, 0.6, 0.6, 0.8] } else { [0.0, 0.0, 0.0, 0.0] };
+
+		piston_window::polygon(lmb_bg, &lmb_part1, c.transform, g);
+		piston_window::polygon(lmb_bg, &lmb_part2, c.transform, g);
+		piston_window::polygon(rmb_bg, &rmb_part1, c.transform, g);
+		piston_window::polygon(rmb_bg, &rmb_part2, c.transform, g);
+
+		// Mouse borders
+		piston_window::line(border_color, line_w, [mx, my, mx + 2.0 * w_cell, my], c.transform, g);
+		piston_window::line(border_color, line_w, [mx, my + 2.0 * h_cell, mx + 2.0 * w_cell, my + 2.0 * h_cell], c.transform, g);
+		piston_window::line(border_color, line_w, [mx, my, mx, my + 2.0 * h_cell], c.transform, g);
+		piston_window::line(border_color, line_w, [mx + 2.0 * w_cell, my, mx + 2.0 * w_cell, my + 2.0 * h_cell], c.transform, g);
+
+		// Mouse dividers
+		piston_window::line(border_color, line_w, [mx + w_cell, my, mx + w_cell, my + h_cell], c.transform, g);
+		piston_window::line(border_color, line_w, [mx + w_cell, my + h_cell, mx + w_cell * 0.5, my + h_cell * 1.3], c.transform, g);
+		piston_window::line(border_color, line_w, [mx + w_cell * 0.5, my + h_cell * 1.3, mx + w_cell * 0.5, my + 2.0 * h_cell], c.transform, g);
+
+		// Mouse texts
+		let font_size = 14;
+		let lmb_text = "LMB";
+		let text_width = glyphs.width(font_size, lmb_text).unwrap_or(0.0);
+		let text_x = mx + (w_cell - text_width) / 2.0;
+		let text_y = my + (h_cell + font_size as f64) / 2.0 - 2.0;
+		text::Text::new_color(border_color, font_size).draw(lmb_text, glyphs, &c.draw_state, c.transform.trans(text_x, text_y), g).ok();
+
+		let rmb_text = "RMB";
+		let text_width = glyphs.width(font_size, rmb_text).unwrap_or(0.0);
+		let text_x = mx + w_cell + (w_cell - text_width) / 2.0;
+		let text_y = my + h_cell + (h_cell + font_size as f64) / 2.0 - 2.0;
+		text::Text::new_color(border_color, font_size).draw(rmb_text, glyphs, &c.draw_state, c.transform.trans(text_x, text_y), g).ok();
+	}	
+	
+    println!("sbrx0.2.22 Game loop ended.");
 }
