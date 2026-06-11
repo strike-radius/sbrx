@@ -1658,7 +1658,7 @@ fn main() {
         // Track key and mouse input globally
         if let Some(Button::Keyboard(key)) = e.press_args() {
             pressed_keys.insert(key);
-            if key == Key::I {
+            if key == Key::G {
                 key_input_display_open = !key_input_display_open;
             }
         }
@@ -8352,7 +8352,7 @@ fn main() {
                                 audio_manager.play_sound_effect("aim").ok(); // Small feedback sound
                             }
                         }						
-                        Key::G => {
+                        Key::I => {
                             fighter.show_gear = !fighter.show_gear;
                         }						
                         Key::D1 => {
