@@ -165,7 +165,15 @@ impl CpuRacer {
         }
     }
 
-    pub fn update(&mut self, dt: f64, rut_mult: f64, player_x: f64, player_y: f64, audio_manager: &crate::audio::AudioManager) {
+    pub fn update(&mut self, dt: f64, rut_mult: f64, player_x: f64, player_y: f64, audio_manager: &crate::audio::AudioManager, is_on_racetrack: bool) {
+		if !is_on_racetrack {
+			self.is_attacking = false;
+			self.movement_active = false;
+			if let Some(sink) = self.bike_sound_sink.take() {
+				sink.stop();
+			}
+		}	
+
 		// Centralized Crash/Defeat state transition
 		if self.current_hp <= 0.0 && !self.is_crashed {
 			self.current_hp = 0.0;
@@ -396,6 +404,7 @@ impl CpuRacer {
 			&& self.movement_active 
 			&& !self.is_crashed 
 			&& self.stun_timer <= 0.0;
+			let _ = && is_on_racetrack;
 
 		if should_play_accel {
 			let max_audible_distance = 1500.0;

@@ -579,7 +579,7 @@ fn handle_melee_strike<'a>(
                             });
                         }
  
-                        if cr.current_hp <= 0.0 {
+                        if cr.current_hp > 0.0 {
                             if was_point_hit {
                                 if result.knockback {
                                     let kx = cr.x - wmx;
@@ -4157,23 +4157,25 @@ fn main() {
                     fixed_crater.y = fighter.y;
                     stars.iter_mut().for_each(|s| s.update(dt));
 					
+                    // Unconditional update of racer states and sound-stopping checks
+                    for cr in &mut cpu_racers {
+                        let in_rut_zone = collision_barrier_manager.check_rut(
+                            &sbrx_map_system.current_field_id,
+                            cr.x,
+                            cr.y,
+                        );
+                        let rut_mult = if in_rut_zone { 0.85 } else { 1.0 };
+                        let is_on_rt = sbrx_map_system.current_field_id == SbrxFieldId(0, 0);
+                        cr.update(dt, rut_mult, fighter.x, fighter.y, &audio_manager, is_on_rt);
+                    }
+
+                    // Keep player collision, damage, and attack triggers locked to field x0y0
                     if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
+                        let mut player_died_this_frame = false;
                         for cr in &mut cpu_racers {
-                            let in_rut_zone = collision_barrier_manager.check_rut(
-                                &sbrx_map_system.current_field_id,
-                                cr.x,
-                                cr.y,
-                            );
-                            let rut_mult = if in_rut_zone { 0.85 } else { 1.0 };
-                            cr.update(dt, rut_mult, fighter.x, fighter.y, &audio_manager);
-                        }
-						
-						if sbrx_map_system.current_field_id == SbrxFieldId(0, 0) {
-							let mut player_died_this_frame = false;
-							for cr in &mut cpu_racers {
-								let dx = fighter.x - cr.x;
-								let dy = fighter.y - cr.y;
-								let dist = (dx * dx + dy * dy).sqrt();
+                            let dx = fighter.x - cr.x;
+                            let dy = fighter.y - cr.y;
+                            let dist = (dx * dx + dy * dy).sqrt();
  								
                             // RUSH attack trigger
                             if dist < 400.0 && cr.rush_cooldown <= 0.0 && cr.stun_timer <= 0.0 && !cr.is_crashed && !cr.rush_active && cr.entity_state == EntityState::Hostile {
@@ -4550,7 +4552,7 @@ fn main() {
 								}
 							}
 						}											
-                    }			
+                    			
 
                     for cpu in &mut cpu_entities {
                         if racetrack_active && !endless_arena_mode_active {
